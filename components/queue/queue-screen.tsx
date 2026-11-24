@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Ban, Dices, Pause, Play, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, usePoll } from "@/lib/client/use-poll";
@@ -26,8 +26,22 @@ interface GalleryRow {
 
 export function QueueScreen() {
   const { data, error, loading, reload } = usePoll<QueueResponse>("/api/queue", 2000);
-  // 進捗・途中画像は、軽い専用の応答を短い間隔で見る(一覧の更新は2秒のまま)。v1 は WebSocket で直接受けているので、それに近づける
-  const fast = usePoll<{ progress: QueueResponse["progress"]; previewAt: number | null }>("/api/queue/live", 400);
+  // 進捗・途中画像は、サーバーから SSE で変化のたびに受け取る(v1 の WebSocket 相当)。つながっていない間は、軽い応答を短い間隔で見る
+  const [stream, setStream] = useState<{ progress: QueueResponse["progress"]; previewAt: number | null } | null>(null);
+  const [streaming, setStreaming] = useState(false);
+  useEffect(() => {
+    if (typeof EventSource === "undefined") return;
+    const es = new EventSource("/api/queue/stream");
+    es.onopen = () => setStreaming(true);
+    es.onmessage = (ev) => {
+      try {
+        setStream(JSON.parse(ev.data));
+      } catch {}
+    };
+    es.onerror = () => setStreaming(false);
+    return () => es.close();
+  }, []);
+  const fast = usePoll<{ progress: QueueResponse["progress"]; previewAt: number | null }>("/api/queue/live", streaming ? null : 400);
   // ビューアに渡す画像は、開いた時点の一覧を持つ(2秒ごとの更新で新しい画像が先頭に増えても、見ている画像がずれないように)
   const [viewer, setViewer] = useState<{ images: ViewerImage[]; start: number } | null>(null);
   const [focusPath, setFocusPath] = useState<string | null>(null);
@@ -133,8 +147,9 @@ export function QueueScreen() {
   const heldImages = data.held.reduce((s, h) => s + h.count, 0);
   const running = data.running[0];
   const group = running ? data.groups[running.entryId] : undefined;
-  const liveProgress = fast.data?.progress ?? data.progress;
-  const livePreviewAt = fast.data ? fast.data.previewAt : data.previewAt;
+  const liveData = streaming && stream ? stream : fast.data;
+  const liveProgress = liveData?.progress ?? data.progress;
+  const livePreviewAt = liveData ? liveData.previewAt : data.previewAt;
   const live = running && liveProgress?.promptId === running.promptId ? liveProgress : null;
   // 待機中を「アイテム」ごとにまとめる(順序は最初に出てきた順)
   const remaining = data.running.length + data.waitingImages;

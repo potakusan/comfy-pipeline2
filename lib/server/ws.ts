@@ -4,7 +4,7 @@ import { getComfyUrl } from "./env";
 /**
  * ComfyUI の WebSocket をサーバー側で1本だけ持ち、進捗とライブプレビュー(途中画像)を保持する。
  * ComfyUI は「プロンプトを投げた client_id」のソケットにだけ進捗・プレビューを送るため、
- * すべての送信でこの clientId を使う。スマホはこのサーバーを HTTP でポーリングするだけでよい。
+ * すべての送信でこの clientId を使う。スマホはこのサーバーから、SSE(/api/queue/stream)で変化のたびに受け取る。
  */
 interface LiveState {
   clientId: string;
@@ -14,7 +14,18 @@ interface LiveState {
   reconnect: ReturnType<typeof setTimeout> | null;
 }
 
-const g = globalThis as unknown as { __cpLive?: LiveState };
+const g = globalThis as unknown as { __cpLive?: LiveState; __cpLiveListeners?: Set<() => void> };
+
+/** 進捗・途中画像が変わったときに呼ばれる(SSE で画面へ流すため) */
+export function subscribeLive(fn: () => void): () => void {
+  const set = (g.__cpLiveListeners ??= new Set());
+  set.add(fn);
+  return () => set.delete(fn);
+}
+
+function emit(): void {
+  for (const fn of g.__cpLiveListeners ?? []) fn();
+}
 
 function state(): LiveState {
   g.__cpLive ??= { clientId: randomUUID(), ws: null, progress: null, preview: null, reconnect: null };
@@ -39,6 +50,7 @@ function onBinary(s: LiveState, raw: ArrayBuffer) {
   const mime = mimeOf(buf, 8);
   if (!mime) return;
   s.preview = { data: buf.subarray(8), mime, at: Date.now() };
+  emit();
 }
 
 function onText(s: LiveState, text: string) {
@@ -63,6 +75,7 @@ function onText(s: LiveState, text: string) {
       s.progress = null;
       break;
   }
+  emit();
 }
 
 /** 接続されていなければ接続する。切れたら少し待って自動で張り直す。 */
@@ -81,6 +94,7 @@ export function ensureWs(): void {
     const retry = () => {
       if (s.ws === ws) s.ws = null;
       s.progress = null;
+      emit();
       s.reconnect ??= setTimeout(() => {
         s.reconnect = null;
         ensureWs();
