@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Check, FlaskConical, Layers, Pencil, Plus, Save, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import { api, usePoll } from "@/lib/client/use-poll";
-import { SIZE_PRESETS } from "@/lib/comfy/prompt";
 import type { PresetType } from "@/lib/comfy/comfy-types";
 import type { PlanRequest } from "@/lib/server/plan";
 import type { LibraryResponse, VariableInfo } from "@/lib/client/types";
@@ -27,11 +26,10 @@ interface Form {
   /** セットごとの、実行対象に選んだプリセット。無ければ全部 */
   checked: Record<string, string[]>;
   /** null = 設定タブの既定サイズに従う。選んだときだけ、その回の上書き */
-  size: number | null;
   varValues: Record<string, string>;
 }
 
-const INITIAL: Form = { setIds: [], lora: null, physical: [], scenes: {}, checked: {}, size: null, varValues: {} };
+const INITIAL: Form = { setIds: [], lora: null, physical: [], scenes: {}, checked: {}, varValues: {} };
 const KEY = "cp2_generate_form_v4";
 
 function loadForm(): Form {
@@ -104,11 +102,10 @@ export function GenerateScreen() {
     if (sets.length === 0) return null;
     return {
       mode: "batch",
-      size: form.size == null ? undefined : SIZE_PRESETS[form.size],
       variableValues: form.varValues,
       batch: { sets, loraName: form.lora, physicalIds: form.physical },
     };
-  }, [activeSets, idsFor, form.lora, form.physical, form.scenes, form.size, form.varValues]);
+  }, [activeSets, idsFor, form.lora, form.physical, form.scenes, form.varValues]);
 
   // 選択が変わるたびに、参照している変数と作られるアイテムを取り直す(連打に備えて少し待つ)
   const reqKey = JSON.stringify(request);
@@ -358,23 +355,6 @@ export function GenerateScreen() {
                 onEdit={() => openEditor({ kind: "variable", name: v.name })}
               />
             ))}
-          </section>
-
-          <section className="panel panel-body" aria-label="サイズ">
-            <span className="label" id="size-label">
-              サイズ
-            </span>
-            <div role="group" aria-labelledby="size-label" style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-xs)" }}>
-              <button type="button" className="chip" aria-pressed={form.size == null} onClick={() => update({ size: null })}>
-                既定 <span className="measured" style={{ marginLeft: 6 }}>{lib.defaultSize.width}×{lib.defaultSize.height}</span>
-              </button>
-              {SIZE_PRESETS.map((s, i) => (
-                <button key={s.label} type="button" className="chip" aria-pressed={form.size === i} onClick={() => update({ size: i })}>
-                  {s.label} <span className="measured" style={{ marginLeft: 6 }}>{s.width}×{s.height}</span>
-                </button>
-              ))}
-            </div>
-            <p className="label" style={{ fontSize: "var(--text-xs)" }}>既定サイズ・モデル・ステップ・CFG などは「設定」タブで変えます。</p>
           </section>
         </div>
       </div>

@@ -141,6 +141,10 @@ type ObjectInfo = Record<string, { input?: { required?: Record<string, unknown[]
 
 export async function listNodeOptions(node: string, field: string): Promise<string[]> {
   const info = await comfyJson<ObjectInfo>(`/object_info/${node}`);
-  const opt = info[node]?.input?.required?.[field]?.[0];
-  return Array.isArray(opt) ? (opt as string[]) : [];
+  const spec = info[node]?.input?.required?.[field] as unknown[] | undefined;
+  // 旧形式: [["a","b"], {...}] / 新しい ComfyUI: ["COMBO", { options: ["a","b"] }]
+  const legacy = spec?.[0];
+  if (Array.isArray(legacy)) return legacy as string[];
+  const opts = (spec?.[1] as { options?: unknown } | undefined)?.options;
+  return Array.isArray(opts) ? (opts as string[]) : [];
 }

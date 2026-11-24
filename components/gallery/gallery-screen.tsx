@@ -54,9 +54,19 @@ function FolderList() {
   }
 
   return (
-    <div className="page" style={{ gap: "var(--space-xs)" }}>
-      <ul className="cardgrid">
-        {data.dirs.map((d) => (
+    <div className="page">
+      {[
+        { key: "todo", title: "リリース未選択", list: data.dirs.filter((d) => d.releaseCount === 0) },
+        { key: "done", title: "リリース選択あり", list: data.dirs.filter((d) => d.releaseCount > 0) },
+      ]
+        .filter((g) => g.list.length > 0)
+        .map(({ key, title, list }) => (
+          <section key={key} aria-label={title} style={{ display: "grid", gap: "var(--space-sm)" }}>
+            <h2 className="label" style={{ fontSize: "var(--text-sm)", maxWidth: "none" }}>
+              {title} <span className="measured">{list.length}</span>
+            </h2>
+            <ul className="cardgrid">
+        {list.map((d) => (
           <li key={d.name}>
             <Link href={`/gallery?folder=${encodeURIComponent(d.name)}`} className="card">
               <span className="card-thumb">
@@ -75,6 +85,8 @@ function FolderList() {
           </li>
         ))}
       </ul>
+          </section>
+        ))}
     </div>
   );
 }

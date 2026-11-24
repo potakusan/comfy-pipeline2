@@ -26,7 +26,7 @@ function writeJson(file: string, value: unknown): void {
 export const DEFAULT_SETTINGS: GenerationSettings = {
   checkpoint: "waiIllustriousSDXL_v170.safetensors",
   modelFamily: "sdxl",
-  upscaleModel: "4x-UltraMix_Balanced.pth",
+  upscaleModel: "RealESRGAN_x4plus_anime_6B.pth",
   upscaleSteps: 0,
   width: 960,
   height: 1600,
@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: GenerationSettings = {
   seed: 0,
   steps: 48,
   cfg: 3,
-  sampler: "dpmpp_3m_sde_gpu",
+  sampler: "euler_ancestral",
   scheduler: "karras",
   denoise: 1,
 };
