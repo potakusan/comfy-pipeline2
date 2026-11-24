@@ -304,15 +304,7 @@ export function MosaicEditor({ path, album, sourceName, index, total, onNavigate
         <Button type="button" variant="ghost" size="icon" aria-label="閉じる" disabled={busy} onClick={close}>
           <X />
         </Button>
-        <Button type="button" variant="outline" size="icon" aria-label="前の画像" disabled={busy || index <= 0} onClick={() => navigate(-1)}>
-          <ChevronLeft />
-        </Button>
-        <span className="measured" style={{ flex: 1, minWidth: "4.5em", textAlign: "center" }} aria-live="polite">
-          {index + 1} / {total}
-        </span>
-        <Button type="button" variant="outline" size="icon" aria-label="次の画像" disabled={busy || index >= total - 1} onClick={() => navigate(1)}>
-          <ChevronRight />
-        </Button>
+        <span style={{ flex: 1 }} />
         <Button type="button" variant="ghost" size="icon" aria-label="元に戻す" disabled={!canUndo} onClick={() => step(past, future)}>
           <Undo2 />
         </Button>
@@ -397,6 +389,18 @@ export function MosaicEditor({ path, album, sourceName, index, total, onNavigate
         <p className="label" style={{ fontSize: "var(--text-xs)" }}>
           モザイクをかけたい範囲を、指でぐるっと囲んでください。拡大したまま動かすときは「移動」に切り替えます。
         </p>
+        {/* 画像送り: サイドバー(スマホでは操作パネル)の一番下に固定する。全件を目視で確認するときに、親指の位置で次々に送れるように */}
+        <nav className="editor-nav" aria-label="画像送り">
+          <Button type="button" variant="outline" size="lg" aria-label="前の画像" disabled={busy || index <= 0} onClick={() => navigate(-1)}>
+            <ChevronLeft /> 前へ
+          </Button>
+          <span className="measured" style={{ textAlign: "center", minWidth: "4.5em" }} aria-live="polite">
+            {index + 1} / {total}
+          </span>
+          <Button type="button" variant="outline" size="lg" aria-label="次の画像" disabled={busy || index >= total - 1} onClick={() => navigate(1)}>
+            次へ <ChevronRight />
+          </Button>
+        </nav>
       </div>
     </div>
   );

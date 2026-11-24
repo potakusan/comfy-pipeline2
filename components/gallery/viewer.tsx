@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Info, Star, Trash2, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, Star, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { RegenControls, RegenForm, RegenOverlay, useRegenJob, type RegenJob } from "./regen-panel";
 
@@ -63,6 +63,14 @@ export function Viewer({ images, start, onClose, onToggleRelease, onDelete, onRe
 
   useEffect(() => scrollTo(start), [start, scrollTo]);
 
+  // 左右キー・ボタンでも画像送りできるように(指のスワイプは、スクロールそのもので動く)
+  const go = useCallback((delta: number) => {
+    const el = track.current;
+    if (!el || el.clientWidth === 0) return;
+    const target = Math.min(Math.max(Math.round(el.scrollLeft / el.clientWidth) + delta, 0), el.children.length - 1);
+    el.scrollTo({ left: target * el.clientWidth, behavior: "smooth" });
+  }, []);
+
   // 再生成が終わって一覧が更新されたら、新しい画像へ移動する
   useEffect(() => {
     if (!focusPath) return;
@@ -86,7 +94,11 @@ export function Viewer({ images, start, onClose, onToggleRelease, onDelete, onRe
       pushed = true;
       window.addEventListener("popstate", onPop);
     }, 0);
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+      else if (e.key === "ArrowLeft" && !(e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement)) go(-1);
+      else if (e.key === "ArrowRight" && !(e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement)) go(1);
+    };
     window.addEventListener("keydown", onKey);
     return () => {
       clearTimeout(timer);
@@ -95,7 +107,7 @@ export function Viewer({ images, start, onClose, onToggleRelease, onDelete, onRe
       // ×などで自分から閉じたときは、積んだ1段を戻して履歴を元に戻す
       if (pushed && !popped) history.back();
     };
-  }, [close]);
+  }, [close, go]);
 
   // 削除で枚数が減ったとき、範囲外を指さないよう補正する。画像が尽きたら閉じる。
   useEffect(() => {
@@ -185,6 +197,16 @@ export function Viewer({ images, start, onClose, onToggleRelease, onDelete, onRe
             </div>
           ))}
         </div>
+        {images.length > 1 && !regenerating && (
+          <>
+            <button type="button" className="viewer-nav viewer-nav--prev" aria-label="前の画像" disabled={index <= 0} onClick={() => go(-1)}>
+              <ChevronLeft size={28} aria-hidden />
+            </button>
+            <button type="button" className="viewer-nav viewer-nav--next" aria-label="次の画像" disabled={index >= images.length - 1} onClick={() => go(1)}>
+              <ChevronRight size={28} aria-hidden />
+            </button>
+          </>
+        )}
         {job && <RegenOverlay state={regen} />}
       </div>
 
