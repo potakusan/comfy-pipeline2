@@ -14,7 +14,7 @@ import { TagField } from "@/components/shell/tag-field";
 import { Picker, type PickItem } from "./picker";
 import { BatchPresetEditor, LoraEditor, PresetEditor, VariableEditor } from "./editors";
 import { LoraAddSheet } from "./lora-add";
-import { FixedLorasSheet } from "./fixed-loras";
+import { FixedLorasSheet, FixedTagsSheet } from "./fixed-loras";
 import { TestResult, type TestRun } from "./test-result";
 
 interface Form {
@@ -51,6 +51,7 @@ type Editor =
   | { kind: "lora"; name: string }
   | { kind: "lora-add" }
   | { kind: "fixed-loras" }
+  | { kind: "fixed-tags" }
   | { kind: "batch"; setId: string; presetId: string };
 
 interface PlanPreview {
@@ -253,6 +254,13 @@ export function GenerateScreen() {
               onEditItem={(name) => openEditor({ kind: "lora", name })}
               onAdd={() => openEditor({ kind: "lora-add" })}
             />
+            <button type="button" className="row w-full text-left" onClick={() => openEditor({ kind: "fixed-tags" })} style={{ background: "var(--color-paper-2)", border: 0, color: "inherit" }}>
+              <span className="label" style={{ width: "5.5em", flexShrink: 0 }}>固定タグ</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: lib.fixedTags.trim() ? "var(--color-ink)" : "var(--color-muted)" }}>
+                {lib.fixedTags.replace(/\s+/g, " ").trim() || "なし"}
+              </span>
+              <ChevronRight size={18} aria-hidden style={{ color: "var(--color-muted)" }} />
+            </button>
             <button type="button" className="row w-full text-left" onClick={() => openEditor({ kind: "fixed-loras" })} style={{ background: "var(--color-paper-2)", border: 0, color: "inherit" }}>
               <span className="label" style={{ width: "5.5em", flexShrink: 0 }}>固定LoRA</span>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: lib.fixedLoras.length ? "var(--color-ink)" : "var(--color-muted)" }}>
@@ -389,6 +397,7 @@ export function GenerateScreen() {
         if (e.kind === "preset")
           return <PresetEditor key={key} type={e.type} id={e.id} categories={lib.categories} onClose={closeEditor} onSaved={() => void refresh()} />;
         if (e.kind === "variable") return <VariableEditor key={key} name={e.name} onClose={closeEditor} onSaved={() => void refresh()} />;
+        if (e.kind === "fixed-tags") return <FixedTagsSheet key={key} onClose={closeEditor} onSaved={() => void refresh()} />;
         if (e.kind === "fixed-loras") return <FixedLorasSheet key={key} onClose={closeEditor} onChanged={() => void refresh()} />;
         if (e.kind === "lora-add")
           return (

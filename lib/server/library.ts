@@ -136,6 +136,11 @@ export function saveVariableLora(lora: Pick<LoraEntry, "name" | "strength" | "cl
   return true;
 }
 
+/** 固定ポジティブプロンプト(全ての生成の先頭に付くタグ) */
+export function saveFixedTags(text: string): void {
+  writeJson("fixedTags", text);
+}
+
 // ---- 固定LoRA(全ての生成に必ず適用される LoRA) -----------------------------------------
 
 export function addFixedLora(lora: { name: string; strength: number; clipStrength: number; triggerWords: string; families?: ("sdxl" | "anima")[] }): "ok" | "duplicate" {

@@ -3,6 +3,7 @@ import {
   addFixedLora,
   addVariableLora,
   deleteFixedLora,
+  saveFixedTags,
   deletePreset,
   deleteVariableDef,
   isPresetType,
@@ -67,6 +68,11 @@ export async function POST(req: NextRequest) {
       }
       case "delete-variable":
         deleteVariableDef(String(b.name));
+        return NextResponse.json({ ok: true });
+      case "get-fixed-tags":
+        return NextResponse.json({ text: lib.fixedTags });
+      case "save-fixed-tags":
+        saveFixedTags(String(b.text ?? ""));
         return NextResponse.json({ ok: true });
       case "list-fixed":
         return NextResponse.json({ loras: lib.fixedLoras });

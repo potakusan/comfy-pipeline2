@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScreenSheet } from "@/components/shell/screen-sheet";
 import { LoraEditor } from "./editors";
 import { LoraAddSheet } from "./lora-add";
+import { TagField } from "@/components/shell/tag-field";
 
 /**
  * 固定LoRA(全ての生成に、必ず同じ強度で適用される LoRA)の一覧と編集。
@@ -98,6 +99,49 @@ export function FixedLorasSheet({ onClose, onChanged }: { onClose: () => void; o
       )}
       {editing && <LoraEditor key={editing} name={editing} fixed onClose={() => setEditing(null)} onSaved={changed} />}
       {adding && <LoraAddSheet fixed onClose={() => setAdding(false)} onAdded={changed} />}
+    </ScreenSheet>
+  );
+}
+
+/** 固定ポジティブプロンプト(全ての生成の先頭に付くタグ。品質タグなど) */
+export function FixedTagsSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [text, setText] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api<{ text: string }>("/api/library/edit", "POST", { action: "get-fixed-tags" })
+      .then((r) => setText(r.text))
+      .catch((e) => toast.error(e instanceof Error ? e.message : "読み込めませんでした"));
+  }, []);
+
+  async function save() {
+    setSaving(true);
+    try {
+      await api("/api/library/edit", "POST", { action: "save-fixed-tags", text });
+      toast.success("保存しました");
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "保存できませんでした");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <ScreenSheet
+      title="固定ポジティブプロンプト"
+      onClose={onClose}
+      footer={
+        <Button size="lg" className="flex-1" disabled={saving || text === null} onClick={() => void save()}>
+          {saving ? "保存中…" : "保存"}
+        </Button>
+      }
+    >
+      <p className="label" style={{ fontSize: "var(--text-xs)" }}>
+        全ての生成の先頭に付くタグです(品質タグなど)。# で始まる行はコメントになります。
+      </p>
+      {text === null ? <Skeleton className="h-40 w-full" /> : <TagField multiline id="fixed-tags" value={text} onChange={setText} rows={10} style={{ fontFamily: "var(--font-outlier)", fontSize: "var(--text-sm)" }} />}
     </ScreenSheet>
   );
 }
