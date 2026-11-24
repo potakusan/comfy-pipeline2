@@ -6,6 +6,7 @@ import { cancelEntry, pauseAfterCurrentSet, planPause, redo, removeHeld, startHe
 import { interrupt } from "@/lib/server/comfy";
 import { getLive } from "@/lib/server/ws";
 import { fail } from "@/lib/server/http";
+import { secondsPerImage } from "@/lib/comfy/eta";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,9 @@ export async function GET() {
       })(),
       progress: live.progress,
       previewAt: live.previewAt,
+      now: Date.now(),
+      // 1枚あたりの秒数の見積もり(最近できた本番の画像の間隔から)。実績が足りなければ null
+      secPerImage: secondsPerImage(readRecent().filter((r) => r.kind === "batch").map((r) => r.at))?.sec ?? null,
       recent: readRecent().slice(0, 40),
       failed: readFailed().slice(0, 5),
     });

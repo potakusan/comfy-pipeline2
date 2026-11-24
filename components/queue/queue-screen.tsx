@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Viewer, type ViewerImage } from "@/components/gallery/viewer";
 import { QueueTree } from "./queue-tree";
+import { formatClock, formatDuration, remainingSeconds } from "@/lib/comfy/eta";
 
 /** セット名。記録がない古い保留は、ラベルの先頭(複数セットのときだけ付く)から推測する */
 const setOf = (h: { label: string; setName: string | null }) => h.setName ?? (h.label.split(" / ").length >= 3 ? h.label.split(" / ")[0] : "その他");
@@ -89,6 +90,11 @@ export function QueueScreen() {
   // 待機中を「アイテム」ごとにまとめる(順序は最初に出てきた順)
   const pendingGroups = [...data.pending.reduce((m, j) => m.set(j.entryId, [...(m.get(j.entryId) ?? []), j]), new Map<string, typeof data.pending>())];
   const remaining = data.running.length + data.pending.length;
+  // 残り時間(ETA)。実行中の1枚は、ステップの進み具合の分だけ減らす
+  const stepFraction = live && live.max > 0 ? live.value / live.max : 0;
+  const eta = data.secPerImage ? remainingSeconds(remaining, data.secPerImage, stepFraction) : null;
+  const etaHeld = data.secPerImage ? remainingSeconds(remaining + heldImages, data.secPerImage, stepFraction) : null;
+  const now = data.now;
   const recentImages: ViewerImage[] = data.recent.map((r) => ({ path: r.path, caption: r.label }));
 
   return (
@@ -101,6 +107,11 @@ export function QueueScreen() {
               {heldImages}
               <span className="label" style={{ marginLeft: 8, fontFamily: "var(--font-body)" }}>枚</span>
             </div>
+            {etaHeld != null && heldImages > 0 && (
+              <p className="measured" style={{ color: "var(--color-cool)" }}>
+                開始すると 約{formatDuration(etaHeld)} ／ {formatClock(now + etaHeld * 1000, now)}頃に完了
+              </p>
+            )}
             {data.held.length === 0 ? (
               <p className="label">「生成」タブで追加すると、ここにたまります。</p>
             ) : (
@@ -147,6 +158,12 @@ export function QueueScreen() {
               <span className="label">実行中</span>
               <span className="measured" style={{ color: "var(--color-cool)" }}>
                 残り {remaining}枚
+              </span>
+            </div>
+            <div className="row" style={{ justifyContent: "space-between", paddingTop: 0 }} aria-live="polite">
+              <span className="label">残り時間の目安</span>
+              <span className="measured" style={{ color: "var(--color-cool)" }}>
+                {eta != null && remaining > 0 ? `約${formatDuration(eta)} ／ ${formatClock(now + eta * 1000, now)}頃` : remaining > 0 ? "計算中(数枚できると出ます)" : "—"}
               </span>
             </div>
             {!running ? (

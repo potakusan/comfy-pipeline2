@@ -70,6 +70,10 @@ export interface QueueResponse {
   /** 実行中のプリセットと、一時停止で保留に戻る枚数(実行中がなければ null) */
   pause: { currentName: string; holdImages: number } | null;
   progress: { promptId: string; value: number; max: number } | null;
+  /** サーバーの現在時刻(完了予定の時刻の計算に使う) */
+  now: number;
+  /** 1枚あたりの秒数の見積もり(実績が足りなければ null) */
+  secPerImage: number | null;
   previewAt: number | null;
   recent: { path: string; promptId: string; entryId?: string; label: string; at: number; kind: QueueJob["kind"] }[];
   failed: { promptId: string; label: string; message: string; at: number }[];
