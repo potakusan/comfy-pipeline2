@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TagField } from "@/components/shell/tag-field";
 import { Picker, type PickItem } from "./picker";
 import { BatchPresetEditor, LoraEditor, PresetEditor, VariableEditor } from "./editors";
+import { LoraAddSheet } from "./lora-add";
 import { TestResult, type TestRun } from "./test-result";
 
 interface Form {
@@ -46,6 +47,7 @@ type Editor =
   | { kind: "preset"; type: PresetType; id: string | null }
   | { kind: "variable"; name: string | null }
   | { kind: "lora"; name: string }
+  | { kind: "lora-add" }
   | { kind: "batch"; setId: string; presetId: string };
 
 interface PlanPreview {
@@ -245,6 +247,7 @@ export function GenerateScreen() {
               onChange={(v) => update({ lora: v })}
               emptyText="LoRAが登録されていません"
               onEditItem={(name) => openEditor({ kind: "lora", name })}
+              onAdd={() => openEditor({ kind: "lora-add" })}
             />
             <Picker
               label="身体"
@@ -392,6 +395,17 @@ export function GenerateScreen() {
         if (e.kind === "preset")
           return <PresetEditor key={key} type={e.type} id={e.id} categories={lib.categories} onClose={closeEditor} onSaved={() => void refresh()} />;
         if (e.kind === "variable") return <VariableEditor key={key} name={e.name} onClose={closeEditor} onSaved={() => void refresh()} />;
+        if (e.kind === "lora-add")
+          return (
+            <LoraAddSheet
+              key={key}
+              onClose={closeEditor}
+              onAdded={(name) => {
+                update({ lora: name });
+                void refresh();
+              }}
+            />
+          );
         if (e.kind === "lora") return <LoraEditor key={key} name={e.name} onClose={closeEditor} onSaved={() => void refresh()} />;
         return (
           <BatchPresetEditor

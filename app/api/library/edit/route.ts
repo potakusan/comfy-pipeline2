@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  addVariableLora,
   deletePreset,
   deleteVariableDef,
   isPresetType,
@@ -78,6 +79,22 @@ export async function POST(req: NextRequest) {
           triggerWords: String(l?.triggerWords ?? ""),
         });
         return ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "LoRAが見つかりません" }, { status: 404 });
+      }
+      case "add-lora": {
+        const l = b.lora;
+        const name = String(l?.name ?? "").trim();
+        if (!name || /[\\/:*?"<>|]/.test(name)) return NextResponse.json({ error: "名前を入力してください(\ / : * ? \" < > | は使えません)" }, { status: 400 });
+        const promptOnly = !!l?.promptOnly;
+        const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
+        const r = addVariableLora({
+          name,
+          strength: num(l?.strength, 1),
+          clipStrength: num(l?.clipStrength, 1),
+          triggerWords: String(l?.triggerWords ?? ""),
+          promptOnly,
+          families: Array.isArray(l?.families) ? l.families.filter((f: string) => f === "sdxl" || f === "anima") : undefined,
+        });
+        return r === "ok" ? NextResponse.json({ ok: true, name }) : NextResponse.json({ error: "同じ名前がすでに登録されています" }, { status: 409 });
       }
       case "get-batch-preset": {
         const p = lib.batchSets.find((s) => s.id === b.setId)?.presets.find((x) => x.id === b.id);

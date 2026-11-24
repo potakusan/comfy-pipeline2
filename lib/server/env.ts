@@ -16,6 +16,8 @@ interface V1Config {
   releaseRootDir?: string;
   loraDir?: string;
   civitaiApiKey?: string;
+  danbooruLogin?: string;
+  danbooruApiKey?: string;
 }
 
 function readV1Config(): V1Config {
@@ -52,6 +54,14 @@ export function getLoraDir(): string {
 /** Civitai の API キー(v1 の設定を流用。環境変数 CIVITAI_API_KEY で上書き)。ブラウザには渡さない。 */
 export function getCivitaiKey(): string | undefined {
   return process.env.CIVITAI_API_KEY || readV1Config().civitaiApiKey || undefined;
+}
+
+/** Danbooru のログイン名と API キー(v1 の設定を流用。サーバーの中だけで使う)。 */
+export function getDanbooruAuth(): { login: string; apiKey: string } | null {
+  const c = readV1Config();
+  const login = process.env.DANBOORU_LOGIN || c.danbooruLogin;
+  const apiKey = process.env.DANBOORU_API_KEY || c.danbooruApiKey;
+  return login && apiKey ? { login, apiKey } : null;
 }
 
 /** リリース用フォルダのルート(例 X:\)。<ルート>\YYYYMM\YYYYMMDD_作品名\グループ\NN.jpg の形で置かれる。 */

@@ -136,6 +136,27 @@ export function saveVariableLora(lora: Pick<LoraEntry, "name" | "strength" | "cl
   return true;
 }
 
+/** 生成画面の「LoRA」リストに追加する。promptOnly = LoRA ファイルを使わず、タグ(とフォルダ名)だけのもの。 */
+export function addVariableLora(lora: { name: string; strength: number; clipStrength: number; triggerWords: string; promptOnly: boolean; families?: ("sdxl" | "anima")[] }): "ok" | "duplicate" {
+  const list = readJson<LoraEntry[]>("variableLoras", []);
+  if (list.some((l) => l.name === lora.name)) return "duplicate";
+  const entry: LoraEntry = {
+    name: lora.name,
+    strength: lora.promptOnly ? 1 : lora.strength,
+    clipStrength: lora.promptOnly ? 1 : lora.clipStrength,
+    triggerWords: lora.triggerWords,
+    ...(lora.promptOnly ? { isPromptOnly: true } : lora.families && lora.families.length > 0 && lora.families.join() !== "sdxl" ? { families: lora.families } : {}),
+  };
+  list.push(entry);
+  writeJson("variableLoras", list);
+  return "ok";
+}
+
+/** 登録済みの LoRA 名(アーカイブ済みも含む) */
+export function variableLoraNames(): string[] {
+  return readJson<LoraEntry[]>("variableLoras", []).map((l) => l.name);
+}
+
 // ---- 一括キューのプリセット編集 -----------------------------------------------------
 
 export function saveBatchPreset(setId: string, preset: BatchPreset): boolean {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Copy, Download, ExternalLink, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, ExternalLink, ListPlus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api, usePoll } from "@/lib/client/use-poll";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ScreenSheet } from "@/components/shell/screen-sheet";
 import { JobPanel } from "@/components/release/job-panel";
+import { LoraAddSheet } from "@/components/generate/lora-add";
 
 interface LocalLora {
   fileName: string;
@@ -217,6 +218,10 @@ function Words({ words }: { words: string[] }) {
 function LocalSheet({ lora, onClose, onDeleted, onOpenCivitai }: { lora: LocalLora; onClose: () => void; onDeleted: () => void; onOpenCivitai: (id: number) => void }) {
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const registry = usePoll<{ loras: { name: string }[] }>("/api/library", null);
+  const listName = lora.fileName.replace(/\.(safetensors|ckpt|pt)$/i, "");
+  const registered = registry.data?.loras.some((l) => l.name === listName) ?? false;
   useEffect(() => {
     if (!armed) return;
     const t = setTimeout(() => setArmed(false), 5000);
@@ -264,12 +269,16 @@ function LocalSheet({ lora, onClose, onDeleted, onOpenCivitai }: { lora: LocalLo
             <Copy /> すべてコピー
           </Button>
         )}
+        <Button size="lg" disabled={registered || !registry.data} onClick={() => setAdding(true)}>
+          {registered ? <Check /> : <ListPlus />} {registered ? "生成画面のLoRAリストに登録済み" : "生成画面のLoRAリストに追加"}
+        </Button>
         {lora.civitaiModelId && (
           <Button variant="outline" onClick={() => onOpenCivitai(lora.civitaiModelId!)}>
             <ExternalLink /> Civitai のページ情報を開く
           </Button>
         )}
       </div>
+      {adding && <LoraAddSheet initial={{ name: listName, trainedWords: lora.trainedWords }} onClose={() => setAdding(false)} onAdded={() => void registry.reload()} />}
     </ScreenSheet>
   );
 }

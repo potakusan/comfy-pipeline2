@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScreenSheet } from "@/components/shell/screen-sheet";
 import { TagField } from "@/components/shell/tag-field";
 import { Picker } from "./picker";
+import { DanbooruImport } from "./lora-add";
 
 const edit = <T,>(body: Record<string, unknown>) => api<T>("/api/library/edit", "POST", body);
 const mono = { fontFamily: "var(--font-outlier)", fontSize: "var(--text-sm)" } as const;
@@ -316,6 +317,7 @@ export function LoraEditor({ name, onClose, onSaved }: { name: string; onClose: 
           <Field label="トリガーワード" htmlFor="l-trig" hint="# で始まる行はコメント。">
             <TagField multiline id="l-trig" value={lora.triggerWords} onChange={(v) => setLora({ ...lora, triggerWords: v })} rows={9} style={mono} />
           </Field>
+          <DanbooruImport value={lora.triggerWords} onChange={(v) => setLora({ ...lora, triggerWords: v })} />
         </>
       )}
     </ScreenSheet>
