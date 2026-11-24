@@ -61,7 +61,7 @@ export interface QueueResponse {
   running: QueueJob[];
   pending: QueueJob[];
   groups: Record<string, { label: string; total: number; remaining: number }>;
-  /** 実行中のセットと、一時停止で保留に戻る枚数(実行中がなければ null) */
+  /** 実行中のプリセットと、一時停止で保留に戻る枚数(実行中がなければ null) */
   pause: { currentName: string; holdImages: number } | null;
   progress: { promptId: string; value: number; max: number } | null;
   previewAt: number | null;

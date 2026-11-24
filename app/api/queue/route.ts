@@ -46,7 +46,7 @@ export async function GET() {
 
 /**
  * { action: "start" }                      保留中をすべて ComfyUI のキューへ送って稼働開始
- * { action: "pause-after-set" }             いま実行中のセットが終わったら止める(残りは保留に戻る。再開は「開始」)
+ * { action: "pause-after-set" }             いま実行中のプリセット(1アイテム)が終わったら止める(残りは保留に戻る。再開は「開始」)
  * { action: "remove-held", id | "all" }    保留を取り消す
  * { action: "redo", mode: "same"|"reroll", promptId? }  実行中の1枚をやり直す
  * { action: "cancel-entry", entryId }      そのアイテムの残りと実行中の1枚を止める

@@ -125,10 +125,10 @@ export async function startHeld(): Promise<StartResult> {
   return { submitted, remainingHeld: readHeld().length, error };
 }
 
-// ---- 一時停止: いま実行中のセットが終わったら止める ------------------------------------------------
+// ---- 一時停止: いま実行中のプリセット(1アイテム)が終わったら止める ------------------------------------------------
 
 export interface PausePlan {
-  /** いま実行中のセット名(セットの情報がない古いジョブは、アイテム名) */
+  /** いま実行中のプリセット名(例: 事前待機) */
   currentName: string;
   /** 一時停止すると保留に戻る(まだ ComfyUI に送られている待機中の)枚数 */
   holdImages: number;
@@ -137,7 +137,7 @@ export interface PausePlan {
 }
 
 /**
- * いま実行中のジョブと同じセット(セット情報がなければ同じアイテム)の残りは続け、
+ * いま実行中のプリセット(一括キューの1アイテム。セットの中の「事前待機」など)の残りは続け、
  * それ以外の待機中のジョブを、保留に戻す対象として数える。実行中のもの・テストと再生成は対象外。
  */
 export function planPause(queue: { running: { promptId: string }[]; pending: { promptId: string }[] }): PausePlan | null {
@@ -147,7 +147,7 @@ export function planPause(queue: { running: { promptId: string }[]; pending: { p
   const current = jobs.find((j) => runningIds.has(j.promptId) && j.kind === "batch") ?? jobs.find((j) => runningIds.has(j.promptId));
   if (!current) return null;
   const cur = entries[current.entryId];
-  const keeps = (entryId: string) => entryId === current.entryId || (!!cur?.setId && entries[entryId]?.setId === cur.setId);
+  const keeps = (entryId: string) => entryId === current.entryId;
 
   const byEntry = new Map<string, string[]>();
   for (const q of queue.pending) {
@@ -156,17 +156,17 @@ export function planPause(queue: { running: { promptId: string }[]; pending: { p
     byEntry.set(j.entryId, [...(byEntry.get(j.entryId) ?? []), j.promptId]);
   }
   const hold = [...byEntry].map(([entryId, promptIds]) => ({ entryId, promptIds }));
-  return { currentName: cur?.setName ?? current.label, holdImages: hold.reduce((n, h) => n + h.promptIds.length, 0), hold };
+  return { currentName: cur?.template.filePrefix || current.label, holdImages: hold.reduce((n, h) => n + h.promptIds.length, 0), hold };
 }
 
 /**
- * 実行中のセットはそのまま最後まで続け、残りの待機中を保留に戻す。ComfyUI は何も実行しなくなるので、
- * セットが終わると止まる。再開は保留の「開始」(いつもの手順)。
+ * 実行中のプリセットはそのまま最後まで続け、残りの待機中を保留に戻す。ComfyUI は何も実行しなくなるので、
+ * そのプリセットが終わると止まる。再開は保留の「開始」(いつもの手順)。
  */
 export async function pauseAfterCurrentSet(): Promise<{ currentName: string; held: number }> {
   const plan = planPause(await getQueue());
   if (!plan) throw new UserError("実行中の生成がありません");
-  if (plan.holdImages === 0) throw new UserError("このセットのあとに待っている生成はありません(止めなくても、終わると止まります)");
+  if (plan.holdImages === 0) throw new UserError("このプリセットのあとに待っている生成はありません(止めなくても、終わると止まります)");
 
   const ids = plan.hold.flatMap((h) => h.promptIds);
   await deletePending(ids);
