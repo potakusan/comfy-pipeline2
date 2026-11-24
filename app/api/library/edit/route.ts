@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
           promptOnly,
           families: Array.isArray(l?.families) ? l.families.filter((f: string) => f === "sdxl" || f === "anima") : undefined,
         });
-        if (r === "archived") return NextResponse.json({ error: "同じ名前のキャラクターが、アーカイブに入っています。キャラクターの一覧の「アーカイブ」から、戻してください", archived: true }, { status: 409 });
+        if (r === "archived") return NextResponse.json({ error: "同じ名前のキャラクターが、アーカイブに入っています。キャラクターの一覧の「アーカイブを表示」をオンにすると、そのまま選べます", archived: true }, { status: 409 });
         return r === "ok" ? NextResponse.json({ ok: true, name }) : NextResponse.json({ error: "同じ名前がすでに登録されています" }, { status: 409 });
       }
       case "get-batch-preset": {

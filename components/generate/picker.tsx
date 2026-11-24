@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, Pencil, Plus, Search } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerClose } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 
 export interface PickItem {
@@ -22,6 +23,8 @@ interface Base {
   onEditItem?: (id: string) => void;
   /** 渡すと一覧の末尾に「新規追加」が出る */
   onAdd?: () => void;
+  /** 渡すと、タイトルの右にスイッチが出る(例: アーカイブを表示) */
+  headerSwitch?: { label: string; value: boolean; onChange: (v: boolean) => void };
 }
 interface Single extends Base {
   multiple?: false;
@@ -39,7 +42,7 @@ interface Multi extends Base {
  * 親指で正確に選べる(数百件の LoRA / プリセットがあるため)。
  */
 export function Picker(props: Single | Multi) {
-  const { label, items, categories = [], emptyText = "候補がありません", onEditItem, onAdd } = props;
+  const { label, items, categories = [], emptyText = "候補がありません", onEditItem, onAdd, headerSwitch } = props;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -100,8 +103,14 @@ export function Picker(props: Single | Multi) {
         </button>
       </DrawerTrigger>
       <DrawerContent>
-        <DrawerHeader>
+        <DrawerHeader style={headerSwitch ? { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "var(--space-sm)" } : undefined}>
           <DrawerTitle>{label}</DrawerTitle>
+          {headerSwitch && (
+            <label style={{ display: "inline-flex", alignItems: "center", gap: "var(--space-xs)", minHeight: 44 }}>
+              <span className="label">{headerSwitch.label}</span>
+              <Switch checked={headerSwitch.value} onCheckedChange={headerSwitch.onChange} aria-label={headerSwitch.label} />
+            </label>
+          )}
         </DrawerHeader>
         <div style={{ padding: "0 var(--space-md) var(--space-sm)", position: "relative" }}>
           <Search size={16} aria-hidden style={{ position: "absolute", left: 26, top: 14, color: "var(--color-muted)" }} />

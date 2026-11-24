@@ -71,6 +71,20 @@ export function GenerateScreen() {
   const [adding, setAdding] = useState(false);
   const [test, setTest] = useState<TestRun | null>(null);
   const [libVersion, setLibVersion] = useState(0);
+  // キャラクター一覧にアーカイブ済みも出すか(この端末に覚えておく)
+  const [showArchived, setShowArchived] = useState(false);
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowArchived(localStorage.getItem("cp2_show_archived_chars") === "1");
+    } catch {}
+  }, []);
+  const setShowArchivedSaved = (v: boolean) => {
+    setShowArchived(v);
+    try {
+      localStorage.setItem("cp2_show_archived_chars", v ? "1" : "0");
+    } catch {}
+  };
 
   // 前回の選択を復元する。保存先(localStorage)が使えない環境では初期値のまま動く。
   useEffect(() => {
@@ -227,8 +241,11 @@ export function GenerateScreen() {
   }
 
   // 新しく追加したものが上に来るよう、登録順(variable-loras.json の並び)を逆にして見せる
-  const loraItems: PickItem[] = [...lib.loras].reverse().map((l) => ({ id: l.name, name: l.name, note: l.promptOnly ? "タグのみ" : undefined, category: l.archived ? "archived" : null }));
-  const archivedNames = new Set(lib.loras.filter((l) => l.archived).map((l) => l.name));
+  // アーカイブ済みは、スイッチをオンにしたときだけ一覧に出す。出たものは、戻さなくても、そのまま選んで使える
+  const loraItems: PickItem[] = [...lib.loras]
+    .reverse()
+    .filter((l) => showArchived || !l.archived || l.name === form.lora)
+    .map((l) => ({ id: l.name, name: l.name, note: [l.archived ? "アーカイブ" : "", l.promptOnly ? "タグのみ" : ""].filter(Boolean).join(" ") || undefined }));
   const setItems: PickItem[] = lib.sets.map((s) => ({ id: s.id, name: s.name, note: `${s.presets.length}件` }));
   const addOf = (type: PresetType) => () => openEditor({ kind: "preset", type, id: null });
   const editOf = (type: PresetType) => (id: string) => openEditor({ kind: "preset", type, id });
@@ -252,12 +269,8 @@ export function GenerateScreen() {
               label="キャラクター"
               items={loraItems}
               value={form.lora}
-              categories={[{ id: "archived", name: "アーカイブ(選べません。編集から戻せます)" }]}
-              onChange={(v) => {
-                // アーカイブ済みは実行の選択肢から外れているので、選ばずに編集画面(戻す操作)を開く
-                if (v && archivedNames.has(v)) openEditor({ kind: "lora", name: v });
-                else update({ lora: v });
-              }}
+              onChange={(v) => update({ lora: v })}
+              headerSwitch={{ label: "アーカイブを表示", value: showArchived, onChange: setShowArchivedSaved }}
               emptyText="キャラクターが登録されていません"
               onEditItem={(name) => openEditor({ kind: "lora", name })}
               onAdd={() => openEditor({ kind: "lora-add" })}

@@ -452,7 +452,7 @@ export function LoraEditor({ name, fixed, onClose, onSaved, onDeleted }: { name:
           <p className="measured" style={{ overflowWrap: "anywhere" }}>{lora.name}</p>
           {onDeleted && !fixed && (
             <Button variant={lora.isArchived ? "default" : "outline"} onClick={() => void toggleArchive()} disabled={saving}>
-              {lora.isArchived ? <ArchiveRestore /> : <Archive />} {lora.isArchived ? "アーカイブから戻す(選べるようになります)" : "アーカイブに移す(選択肢から外す)"}
+              {lora.isArchived ? <ArchiveRestore /> : <Archive />} {lora.isArchived ? "アーカイブから戻す(普段の一覧に出します)" : "アーカイブに移す(普段の一覧から隠します)"}
             </Button>
           )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-sm)" }}>
