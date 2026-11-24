@@ -19,6 +19,7 @@ export async function GET() {
         .filter((l) => !l.isArchived)
         .map((l) => ({ name: l.name, promptOnly: !!l.isPromptOnly })),
       fixedTags: lib.fixedTags,
+      negativePrompt: lib.negativePrompt,
       fixedLoras: lib.fixedLoras.map((l) => ({ name: l.name })),
       physical: slim(lib.physical),
       count: slim(lib.count),

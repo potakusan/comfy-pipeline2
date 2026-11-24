@@ -13,6 +13,8 @@ export interface LibraryResponse {
   loras: { name: string; promptOnly: boolean }[];
   /** 固定ポジティブプロンプト(全ての生成の先頭に付く) */
   fixedTags: string;
+  /** 固定ネガティブプロンプト(全ての生成のネガティブに付く) */
+  negativePrompt: string;
   /** 全ての生成に必ず適用される LoRA */
   fixedLoras: { name: string }[];
   physical: SlimPreset[];

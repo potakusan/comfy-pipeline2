@@ -52,6 +52,7 @@ type Editor =
   | { kind: "lora-add" }
   | { kind: "fixed-loras" }
   | { kind: "fixed-tags" }
+  | { kind: "fixed-negative" }
   | { kind: "batch"; setId: string; presetId: string };
 
 interface PlanPreview {
@@ -262,6 +263,13 @@ export function GenerateScreen() {
               </span>
               <ChevronRight size={18} aria-hidden style={{ color: "var(--color-muted)" }} />
             </button>
+            <button type="button" className="row w-full text-left" onClick={() => openEditor({ kind: "fixed-negative" })} style={{ background: "var(--color-paper-2)", border: 0, color: "inherit" }}>
+              <span className="label" style={{ width: "5.5em", flexShrink: 0 }}>固定ネガ</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: lib.negativePrompt.trim() ? "var(--color-ink)" : "var(--color-muted)" }}>
+                {lib.negativePrompt.replace(/\s+/g, " ").trim() || "なし"}
+              </span>
+              <ChevronRight size={18} aria-hidden style={{ color: "var(--color-muted)" }} />
+            </button>
             <button type="button" className="row w-full text-left" onClick={() => openEditor({ kind: "fixed-loras" })} style={{ background: "var(--color-paper-2)", border: 0, color: "inherit" }}>
               <span className="label" style={{ width: "5.5em", flexShrink: 0 }}>固定LoRA</span>
               <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: lib.fixedLoras.length ? "var(--color-ink)" : "var(--color-muted)" }}>
@@ -398,6 +406,7 @@ export function GenerateScreen() {
         if (e.kind === "preset")
           return <PresetEditor key={key} type={e.type} id={e.id} categories={lib.categories} onClose={closeEditor} onSaved={() => void refresh()} />;
         if (e.kind === "variable") return <VariableEditor key={key} name={e.name} onClose={closeEditor} onSaved={() => void refresh()} />;
+        if (e.kind === "fixed-negative") return <FixedTagsSheet key={key} kind="negative" onClose={closeEditor} onSaved={() => void refresh()} />;
         if (e.kind === "fixed-tags") return <FixedTagsSheet key={key} onClose={closeEditor} onSaved={() => void refresh()} />;
         if (e.kind === "fixed-loras") return <FixedLorasSheet key={key} onClose={closeEditor} onChanged={() => void refresh()} />;
         if (e.kind === "lora-add")

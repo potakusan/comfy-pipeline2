@@ -5,6 +5,7 @@ import {
   deleteFixedLora,
   deleteVariableLora,
   saveFixedTags,
+  saveNegativePrompt,
   deletePreset,
   deleteVariableDef,
   isPresetType,
@@ -69,6 +70,11 @@ export async function POST(req: NextRequest) {
       }
       case "delete-variable":
         deleteVariableDef(String(b.name));
+        return NextResponse.json({ ok: true });
+      case "get-negative":
+        return NextResponse.json({ text: lib.negativePrompt });
+      case "save-negative":
+        saveNegativePrompt(String(b.text ?? ""));
         return NextResponse.json({ ok: true });
       case "get-fixed-tags":
         return NextResponse.json({ text: lib.fixedTags });

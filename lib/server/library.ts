@@ -136,6 +136,11 @@ export function saveVariableLora(lora: Pick<LoraEntry, "name" | "strength" | "cl
   return true;
 }
 
+/** 固定ネガティブプロンプト(全ての生成のネガティブに付くタグ) */
+export function saveNegativePrompt(text: string): void {
+  writeJson("negativePrompt", text);
+}
+
 /** 固定ポジティブプロンプト(全ての生成の先頭に付くタグ) */
 export function saveFixedTags(text: string): void {
   writeJson("fixedTags", text);

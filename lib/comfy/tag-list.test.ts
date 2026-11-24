@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseTags, removeTag } from "./tag-list";
+import { mergeNegatives, parseTags, removeTag } from "./tag-list";
 
 describe("parseTags", () => {
   it("カンマ・改行で区切り、コメント行と空要素を除く", () => {
@@ -24,5 +24,16 @@ describe("removeTag", () => {
   it("改行とコメント行を保つ", () => {
     expect(rm("a, b,\n# note\nc, d", "d")).toBe("a, b,\n# note\nc");
     expect(rm("a, b,\n# note\nc, d", "b")).toBe("a\n# note\nc, d");
+  });
+});
+
+describe("mergeNegatives", () => {
+  it("固定を先に、同じタグは1回だけ、コメントは落とす", () => {
+    expect(mergeNegatives("bad quality, worst quality,\n# memo\nblurry", "Blurry, jpeg artifacts,\nbad anatomy")).toBe("bad quality, worst quality, blurry, jpeg artifacts, bad anatomy");
+  });
+  it("片方が空なら、もう一方", () => {
+    expect(mergeNegatives("", "a, b")).toBe("a, b");
+    expect(mergeNegatives("a, b", "")).toBe("a, b");
+    expect(mergeNegatives("", "")).toBe("");
   });
 });

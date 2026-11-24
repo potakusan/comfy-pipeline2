@@ -30,6 +30,22 @@ export function parseTags(value: string): TagToken[] {
   return out;
 }
 
+/**
+ * 固定ネガティブと、プリセット固有のネガティブを合わせる。固定を先に、同じタグ(大文字小文字を無視)は1回だけ。
+ * コメント行(#)は落とす。どちらかが空なら、もう一方をそのまま使う。
+ */
+export function mergeNegatives(fixed: string, own: string): string {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of [...parseTags(fixed), ...parseTags(own)]) {
+    const k = t.text.toLowerCase();
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(t.text);
+  }
+  return out.join(", ");
+}
+
 /** タグを1つ取り除く。前後のカンマ・空白は整え、改行とコメント行は壊さない。 */
 export function removeTag(value: string, token: TagToken): string {
   const before = value.slice(0, token.start);

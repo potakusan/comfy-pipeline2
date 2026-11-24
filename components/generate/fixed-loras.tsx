@@ -103,21 +103,22 @@ export function FixedLorasSheet({ onClose, onChanged }: { onClose: () => void; o
   );
 }
 
-/** 固定ポジティブプロンプト(全ての生成の先頭に付くタグ。品質タグなど) */
-export function FixedTagsSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+/** 固定ポジティブ(全ての生成の先頭に付くタグ。品質タグなど)/ 固定ネガティブ(全ての生成のネガティブに付くタグ)の編集 */
+export function FixedTagsSheet({ kind = "positive", onClose, onSaved }: { kind?: "positive" | "negative"; onClose: () => void; onSaved: () => void }) {
+  const neg = kind === "negative";
   const [text, setText] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    api<{ text: string }>("/api/library/edit", "POST", { action: "get-fixed-tags" })
+    api<{ text: string }>("/api/library/edit", "POST", { action: neg ? "get-negative" : "get-fixed-tags" })
       .then((r) => setText(r.text))
       .catch((e) => toast.error(e instanceof Error ? e.message : "読み込めませんでした"));
-  }, []);
+  }, [neg]);
 
   async function save() {
     setSaving(true);
     try {
-      await api("/api/library/edit", "POST", { action: "save-fixed-tags", text });
+      await api("/api/library/edit", "POST", { action: neg ? "save-negative" : "save-fixed-tags", text });
       toast.success("保存しました");
       onSaved();
       onClose();
@@ -130,7 +131,7 @@ export function FixedTagsSheet({ onClose, onSaved }: { onClose: () => void; onSa
 
   return (
     <ScreenSheet
-      title="固定ポジティブプロンプト"
+      title={neg ? "固定ネガティブプロンプト" : "固定ポジティブプロンプト"}
       onClose={onClose}
       footer={
         <Button size="lg" className="flex-1" disabled={saving || text === null} onClick={() => void save()}>
@@ -139,7 +140,8 @@ export function FixedTagsSheet({ onClose, onSaved }: { onClose: () => void; onSa
       }
     >
       <p className="label" style={{ fontSize: "var(--text-xs)" }}>
-        全ての生成の先頭に付くタグです(品質タグなど)。# で始まる行はコメントになります。
+        {neg ? "全ての生成のネガティブに付くタグです。プリセット固有のネガティブと同じタグは、1回だけ使われます。" : "全ての生成の先頭に付くタグです(品質タグなど)。"}
+        # で始まる行はコメントになります。
       </p>
       {text === null ? <Skeleton className="h-40 w-full" /> : <TagField multiline id="fixed-tags" value={text} onChange={setText} rows={10} style={{ fontFamily: "var(--font-outlier)", fontSize: "var(--text-sm)" }} />}
     </ScreenSheet>

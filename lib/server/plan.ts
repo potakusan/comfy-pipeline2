@@ -1,3 +1,4 @@
+import { mergeNegatives } from "@/lib/comfy/tag-list";
 import type { Preset, PresetType } from "@/lib/comfy/comfy-types";
 import { collectTemplateVariables, type ItemTemplate } from "@/lib/comfy/item";
 import { isCommentLine } from "@/lib/comfy/prompt";
@@ -124,8 +125,8 @@ export function buildPlan(req: PlanRequest, lib: Library = readLibrary()): Plann
           additionalLines: lines(p.additionalPrompt ?? ""),
           additionalMode: p.additionalPromptMode ?? "all",
           variationTags: p.randomCompositionEnabled === false ? [] : [...(p.variationTags ?? [])],
-          // v1 の一括キューはグローバルではなくプリセット固有のネガティブを使う
-          negativePrompt: p.negativePrompt ?? "",
+          // プリセット固有のネガティブに、固定ネガティブ(全ての生成に付く)を足す(v1 はプリセット固有のみ)
+          negativePrompt: mergeNegatives(lib.negativePrompt, p.negativePrompt ?? ""),
           variableValues: { ...p.variableValues, ...req.variableValues },
         };
         return { template, count: Math.max(1, Math.floor(b.countOverride ?? p.batchCount)), batchPresetId: p.id, setId: set.id, setName: set.name };
