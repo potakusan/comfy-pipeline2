@@ -28,12 +28,23 @@ export async function comfyJson<T>(pathname: string, init?: RequestInit): Promis
  * ワークフローを ComfyUI のキューへ送る。client_id は常にこのサーバーの WebSocket のもの
  * (進捗・プレビューを受け取るため)。front: true で待機列の先頭に割り込ませる(テスト生成・再生成・やり直し)。
  */
-export async function submitPrompt(workflow: Record<string, unknown>, opts: { front?: boolean } = {}): Promise<string> {
+/**
+ * 待機列での優先度(ComfyUI は number が小さいものから実行する。通常は 0 以上)。
+ * 同じ優先度だと順序が決まらない(prompt_id で並ぶ)ので、時刻で少しずつ増やし、先に送ったものが先に実行されるようにする。
+ *  front: true  再生成・テスト・追加生成: 通常のキューより先
+ *  front: "now" やり直し: 再生成より先(いまの1枚のあとにすぐ)
+ */
+function priority(front: boolean | "now"): number {
+  const tick = Math.floor(Date.now() / 100) % 900_000_000;
+  return (front === "now" ? -2_000_000_000 : -1_000_000_000) + tick;
+}
+
+export async function submitPrompt(workflow: Record<string, unknown>, opts: { front?: boolean | "now" } = {}): Promise<string> {
   ensureWs();
   const res = await comfyFetch("/prompt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: workflow, client_id: getClientId(), ...(opts.front ? { number: -1 } : {}) }),
+    body: JSON.stringify({ prompt: workflow, client_id: getClientId(), ...(opts.front ? { number: priority(opts.front) } : {}) }),
   });
   const data = (await res.json().catch(() => ({}))) as {
     prompt_id?: string;

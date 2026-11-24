@@ -52,7 +52,7 @@ interface SubmitArgs {
   entryId: string;
   index: number;
   kind: PendingJob["kind"];
-  front?: boolean;
+  front?: boolean | "now";
   /** テスト生成は本番のフォルダを汚さないよう専用フォルダへ出す */
   outputPrefix?: string;
 }
@@ -330,7 +330,7 @@ export async function redo(mode: RedoMode, promptId?: string): Promise<{ promptI
       entryId: job.entryId,
       index: job.index,
       kind: job.kind,
-      front: true,
+      front: "now",
       outputPrefix: job.outputPrefix,
     });
   } else {
@@ -343,7 +343,7 @@ export async function redo(mode: RedoMode, promptId?: string): Promise<{ promptI
       negativePrompt: m.negativePrompt ?? "",
       outputPrefix: job.outputPrefix,
     });
-    const newId = await submitPrompt(workflow, { front: true });
+    const newId = await submitPrompt(workflow, { front: "now" });
     next = {
       ...job,
       promptId: newId,

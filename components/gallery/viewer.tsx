@@ -43,7 +43,12 @@ export function Viewer({ images, start, onClose, onToggleRelease, onDelete, onRe
   const [dragging, setDragging] = useState(false);
   const drag = useRef<{ x: number; y: number; active: boolean } | null>(null);
 
-  const close = useCallback(() => onClose(), [onClose]);
+  // 親が再描画のたびに onClose を作り直しても(キュー画面は2秒ごとに更新される)、履歴の付け外しをやり直して閉じてしまわないよう、最新の onClose を ref で持つ
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
+  const close = useCallback(() => onCloseRef.current(), []);
 
   // 再生成の進行(進捗・途中画像・完成の検知)。完成したら新しい画像へ移る
   const regen = useRegenJob(job, setJob, (path) => {

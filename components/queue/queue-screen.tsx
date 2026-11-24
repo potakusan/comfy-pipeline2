@@ -14,9 +14,21 @@ import { formatClock, formatDuration, remainingSeconds } from "@/lib/comfy/eta";
 /** セット名。記録がない古い保留は、ラベルの先頭(複数セットのときだけ付く)から推測する */
 const setOf = (h: { label: string; setName: string | null }) => h.setName ?? (h.label.split(" / ").length >= 3 ? h.label.split(" / ")[0] : "その他");
 
+interface GalleryRow {
+  path: string;
+  v: string;
+  positivePrompt: string | null;
+  negativePrompt: string | null;
+  loraName: string | null;
+  seed: number | null;
+  canRegenerate: boolean;
+}
+
 export function QueueScreen() {
   const { data, error, loading, reload } = usePoll<QueueResponse>("/api/queue", 2000);
-  const [viewer, setViewer] = useState<number | null>(null);
+  // ビューアに渡す画像は、開いた時点の一覧を持つ(2秒ごとの更新で新しい画像が先頭に増えても、見ている画像がずれないように)
+  const [viewer, setViewer] = useState<{ images: ViewerImage[]; start: number } | null>(null);
+  const [focusPath, setFocusPath] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
   async function act(body: Record<string, unknown>, ok?: string) {
@@ -50,6 +62,39 @@ export function QueueScreen() {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "取り消せませんでした");
     }
+    await reload();
+  }
+
+  /** ギャラリーのフォルダの一覧から、再生成に必要なメタデータ(プロンプト・シード)付きのビューア用の画像を作る */
+  async function viewerImagesFor(paths: { path: string; label: string }[]): Promise<ViewerImage[]> {
+    const rows = new Map<string, GalleryRow>();
+    await Promise.all(
+      [...new Set(paths.map((p) => p.path.split("/")[0]))].map(async (folder) => {
+        try {
+          const r = await api<{ images: GalleryRow[] }>(`/api/gallery/images?folder=${encodeURIComponent(folder)}`, "GET");
+          for (const im of r.images) rows.set(im.path, im);
+        } catch {
+          // フォルダが消えている・取れないときは、プロンプトなしで見るだけ
+        }
+      }),
+    );
+    return paths.map(({ path, label }) => {
+      const m = rows.get(path);
+      return { path, v: m?.v, caption: label, canRegenerate: !!m?.canRegenerate, info: m ? { prompt: m.positivePrompt, negative: m.negativePrompt, lora: m.loraName, seed: m.seed } : undefined };
+    });
+  }
+
+  async function openViewer(i: number) {
+    const images = await viewerImagesFor(data!.recent.map((r) => ({ path: r.path, label: r.label })));
+    setFocusPath(null);
+    setViewer({ images, start: i });
+  }
+
+  /** 再生成が終わったら、新しい画像を先頭に足して、そこへ移る(完成した画像の一覧にも、すぐあとで並ぶ) */
+  async function regenerated(newPath: string) {
+    const [img] = await viewerImagesFor([{ path: newPath, label: "再生成" }]);
+    setViewer((v) => (v ? { ...v, images: [img, ...v.images.filter((x) => x.path !== newPath)] } : v));
+    setFocusPath(newPath);
     await reload();
   }
 
@@ -261,7 +306,7 @@ export function QueueScreen() {
         ) : (
           <div className="thumbs thumbs--contain">
             {recentImages.map((img, i) => (
-              <button key={img.path} type="button" onClick={() => setViewer(i)} aria-label={`${img.caption ?? "画像"}を開く`}>
+              <button key={img.path} type="button" onClick={() => void openViewer(i)} aria-label={`${img.caption ?? "画像"}を開く`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/gallery/thumb?path=${encodeURIComponent(img.path)}`} alt="" loading="lazy" />
               </button>
@@ -270,7 +315,7 @@ export function QueueScreen() {
         )}
       </section>
 
-      {viewer != null && <Viewer images={recentImages} start={viewer} onClose={() => setViewer(null)} />}
+      {viewer != null && <Viewer images={viewer.images} start={viewer.start} focusPath={focusPath} onRegenerated={(p) => void regenerated(p)} onClose={() => setViewer(null)} />}
     </div>
   );
 }
