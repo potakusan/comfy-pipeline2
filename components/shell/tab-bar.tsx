@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Grid3X3, Images, ListOrdered, PackageCheck, Settings, Wand2 } from "lucide-react";
+import { Activity, Grid3X3, Images, ListOrdered, PackageCheck, Settings, Sparkle, Wand2 } from "lucide-react";
 
 /**
  * 主な5つはスマホの下のバーにも並べる。「状態」「設定」は使う頻度が低いので、スマホでは
@@ -14,6 +14,7 @@ export const TABS = [
   { href: "/gallery", label: "ギャラリー", icon: Images },
   { href: "/mosaic", label: "モザイク", icon: Grid3X3 },
   { href: "/release", label: "リリース", icon: PackageCheck },
+  { href: "/loras", label: "LoRA", icon: Sparkle, more: true },
   { href: "/status", label: "状態", icon: Activity, more: true },
   { href: "/settings", label: "設定", icon: Settings, more: true },
 ] as const;

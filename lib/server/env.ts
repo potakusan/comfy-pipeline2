@@ -14,6 +14,8 @@ interface V1Config {
   outputDir?: string;
   libraryDir?: string;
   releaseRootDir?: string;
+  loraDir?: string;
+  civitaiApiKey?: string;
 }
 
 function readV1Config(): V1Config {
@@ -38,6 +40,18 @@ export function getLibraryDir(): string {
   return path.resolve(
     process.env.LIBRARY_DIR || readV1Config().libraryDir || path.join(V1_DIR, "data", "library"),
   );
+}
+
+/** LoRA を置くフォルダ(v1 の設定を共有。環境変数 LORA_DIR で上書き)。 */
+export function getLoraDir(): string {
+  const dir = process.env.LORA_DIR || readV1Config().loraDir;
+  if (!dir) throw new Error("loraDir が未設定です。LORA_DIR を指定するか、v1 の設定を確認してください");
+  return path.resolve(dir);
+}
+
+/** Civitai の API キー(v1 の設定を流用。環境変数 CIVITAI_API_KEY で上書き)。ブラウザには渡さない。 */
+export function getCivitaiKey(): string | undefined {
+  return process.env.CIVITAI_API_KEY || readV1Config().civitaiApiKey || undefined;
 }
 
 /** リリース用フォルダのルート(例 X:\)。<ルート>\YYYYMM\YYYYMMDD_作品名\グループ\NN.jpg の形で置かれる。 */
