@@ -58,10 +58,12 @@ export interface QueueJob {
   entryId: string;
   index: number;
   kind: "batch" | "test" | "regen";
+  loraName: string | null;
+  setName: string | null;
 }
 
 export interface QueueResponse {
-  held: { id: string; label: string; count: number; setName: string | null }[];
+  held: { id: string; label: string; count: number; setName: string | null; loraName: string }[];
   running: QueueJob[];
   pending: QueueJob[];
   groups: Record<string, { label: string; total: number; remaining: number }>;

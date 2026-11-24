@@ -17,7 +17,8 @@ export async function GET() {
     const entries = readEntries();
     const describe = (promptId: string) => {
       const j = jobs.find((x) => x.promptId === promptId);
-      return { promptId, label: j?.label ?? "", entryId: j?.entryId ?? promptId, index: j?.index ?? 0, kind: j?.kind ?? "batch" };
+      const rec = j ? entries[j.entryId] : undefined;
+      return { promptId, label: j?.label ?? "", entryId: j?.entryId ?? promptId, index: j?.index ?? 0, kind: j?.kind ?? "batch", loraName: rec?.template.loraName ?? null, setName: rec?.setName ?? null };
     };
     const groups: Record<string, { label: string; total: number; remaining: number }> = {};
     for (const j of jobs) {
@@ -26,7 +27,7 @@ export async function GET() {
     }
     const live = getLive();
     return NextResponse.json({
-      held: readHeld().map((h) => ({ id: h.id, label: h.template.label, count: h.count, setName: h.setName ?? null })),
+      held: readHeld().map((h) => ({ id: h.id, label: h.template.label, count: h.count, setName: h.setName ?? null, loraName: h.template.loraName })),
       running: queue.running.map((q) => describe(q.promptId)),
       pending: queue.pending.map((q) => describe(q.promptId)),
       groups,
