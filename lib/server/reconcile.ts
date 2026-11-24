@@ -5,6 +5,7 @@ import { getHistory, type QueueSnapshot } from "./comfy";
 import { convertOutput } from "./convert";
 import {
   readEntries,
+  readTodo,
   readFailed,
   readJobs,
   readRecent,
@@ -161,6 +162,6 @@ async function reconcileOnce(queue: QueueSnapshot): Promise<void> {
   if (failed.length) writeFailed([...failed, ...readFailed()]);
 
   // 参照するジョブが無くなったアイテム雛形は捨てる
-  const live = new Set(readJobs().map((j) => j.entryId));
+  const live = new Set([...readJobs().map((j) => j.entryId), ...readTodo().map((t) => t.id)]);
   updateEntries((all) => Object.fromEntries(Object.entries(all).filter(([id]) => live.has(id))));
 }

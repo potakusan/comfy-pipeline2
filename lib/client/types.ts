@@ -66,6 +66,11 @@ export interface QueueResponse {
   held: { id: string; label: string; count: number; setName: string | null; loraName: string }[];
   running: QueueJob[];
   pending: QueueJob[];
+  /** 待機中(ComfyUI のキューにある分と、これから送る分)をアイテムごとにまとめたもの */
+  waiting: { entryId: string; label: string; count: number; loraName: string | null; setName: string | null }[];
+  waitingImages: number;
+  /** 送り出しが ComfyUI に繋がらないなどで止まっているときのメッセージ */
+  feedError: string | null;
   groups: Record<string, { label: string; total: number; remaining: number }>;
   /** 実行中のプリセットと、一時停止で保留に戻る枚数(実行中がなければ null) */
   pause: { currentName: string; holdImages: number } | null;

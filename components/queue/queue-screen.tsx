@@ -88,8 +88,7 @@ export function QueueScreen() {
   const group = running ? data.groups[running.entryId] : undefined;
   const live = running && data.progress?.promptId === running.promptId ? data.progress : null;
   // 待機中を「アイテム」ごとにまとめる(順序は最初に出てきた順)
-  const pendingGroups = [...data.pending.reduce((m, j) => m.set(j.entryId, [...(m.get(j.entryId) ?? []), j]), new Map<string, typeof data.pending>())];
-  const remaining = data.running.length + data.pending.length;
+  const remaining = data.running.length + data.waitingImages;
   // 残り時間(ETA)。実行中の1枚は、ステップの進み具合の分だけ減らす
   const stepFraction = live && live.max > 0 ? live.value / live.max : 0;
   const eta = data.secPerImage ? remainingSeconds(remaining, data.secPerImage, stepFraction) : null;
@@ -137,6 +136,13 @@ export function QueueScreen() {
               </Button>
             </div>
           </section>
+
+          {data.feedError && (
+            <section className="panel panel-body" role="alert" aria-label="送信できていません">
+              <p style={{ color: "var(--color-bad)" }}>ComfyUI に送れていません(自動で再試行します)</p>
+              <p className="label" style={{ overflowWrap: "anywhere" }}>{data.feedError}</p>
+            </section>
+          )}
 
           {data.failed.length > 0 && (
             <section className="panel" aria-label="失敗">
@@ -223,7 +229,7 @@ export function QueueScreen() {
             )}
           </section>
 
-          {pendingGroups.length > 0 && (
+          {data.waiting.length > 0 && (
             <section className="panel" aria-label="待機中">
               <div className="row" style={{ justifyContent: "space-between" }}>
                 <span className="label">待機中</span>
@@ -233,7 +239,7 @@ export function QueueScreen() {
               </div>
               <div style={{ padding: "0 var(--space-sm) var(--space-sm)" }}>
                 <QueueTree
-                  items={pendingGroups.map(([entryId, jobs]) => ({ id: entryId, label: jobs[0].label || jobs[0].promptId.slice(0, 8), count: jobs.length, lora: jobs[0].loraName ?? "", set: jobs[0].setName ?? (jobs[0].label.split(" / ").length >= 3 ? jobs[0].label.split(" / ")[0] : null) }))}
+                  items={data.waiting.map((w) => ({ id: w.entryId, label: w.label, count: w.count, lora: w.loraName ?? "", set: w.setName ?? (w.label.split(" / ").length >= 3 ? w.label.split(" / ")[0] : null) }))}
                   removeWord="取り消す"
                   onRemove={(h) => void act({ action: "cancel-entry", entryId: h.id }, "取り消しました")}
                   onRemoveMany={(items, name) => void cancelMany(items.map((h) => h.id), `${name}を取り消しました`)}

@@ -12,7 +12,7 @@ import { TABS, isCurrent } from "./tab-bar";
 interface QueueLite {
   held: { count: number }[];
   running: unknown[];
-  pending: unknown[];
+  waitingImages: number;
 }
 
 /** 全画面の上部: 画面名と、ComfyUI のキューの今(保留/実行中/待ち)、スマホでは「状態・設定」のメニュー。 */
@@ -33,7 +33,7 @@ export function AppBar() {
             ) : data ? (
               <span>
                 {data.held.length > 0 && <span style={{ color: "var(--color-accent)" }}>保留 {data.held.reduce((n, h) => n + h.count, 0)} / </span>}
-                実行 {data.running.length} / 待ち {data.pending.length}
+                実行 {data.running.length} / 待ち {data.waitingImages}
               </span>
             ) : (
               <span style={{ color: "var(--color-muted)" }}>確認中</span>

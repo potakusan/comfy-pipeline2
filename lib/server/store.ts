@@ -70,6 +70,35 @@ export function writeHeld(items: HeldEntry[]): void {
   writeJson("held.json", items);
 }
 
+// ---- 開始済みで、まだ ComfyUI へ送っていない分 ---------------------------------------------
+// 「開始」で全部を一度に ComfyUI へ送らず、ここに置いて1枚ずつ(実行中+次の1枚だけ)送る。v1 と同じ逐次の送り方。
+
+export interface TodoEntry {
+  /** アイテム(entries.json の id)。ジョブの entryId と同じ */
+  id: string;
+  template: ItemTemplate;
+  /** まだ送っていない枚数 */
+  remaining: number;
+  /** 次に送る枚数目(0始まり) */
+  nextIndex: number;
+  addedAt: number;
+  setId?: string;
+  setName?: string;
+}
+
+export function readTodo(): TodoEntry[] {
+  return readJson<TodoEntry[]>("todo.json", []);
+}
+
+export function writeTodo(items: TodoEntry[]): void {
+  writeJson("todo.json", items);
+}
+
+/** 読み→変更→書きを await を挟まず同期で行う(ジョブ・雛形と同じ理由) */
+export function updateTodo(fn: (todo: TodoEntry[]) => TodoEntry[]): void {
+  writeTodo(fn(readTodo()));
+}
+
 // ---- 送信済みジョブ ---------------------------------------------------------------
 
 export interface JobRegen {
