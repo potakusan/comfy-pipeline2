@@ -32,6 +32,7 @@ export function addToHeld(items: PlannedItem[]): { entries: number; images: numb
     template: it.template,
     count: Math.min(it.count, MAX_IMAGES_PER_ENTRY),
     addedAt: Date.now(),
+    ...(it.setId ? { setId: it.setId, setName: it.setName } : {}),
   }));
   writeHeld([...held, ...added]);
   return { entries: added.length, images: added.reduce((s, e) => s + e.count, 0) };
@@ -95,7 +96,7 @@ export async function startHeld(): Promise<StartResult> {
   let error: string | undefined;
 
   outer: for (const entry of held) {
-    updateEntries((e) => ({ ...e, [entry.id]: { template: entry.template, total: entry.count } }));
+    updateEntries((e) => ({ ...e, [entry.id]: { template: entry.template, total: entry.count, ...(entry.setId ? { setId: entry.setId, setName: entry.setName } : {}) } }));
     // 途中で失敗しても、ここまでに送れた分は既にキューにあるので、残りだけを保留に戻す
     let done = 0;
     for (let i = 0; i < entry.count; i++) {
@@ -122,6 +123,81 @@ export async function startHeld(): Promise<StartResult> {
     writeHeld(held.filter((h) => h.count > 0));
   }
   return { submitted, remainingHeld: readHeld().length, error };
+}
+
+// ---- 一時停止: いま実行中のセットが終わったら止める ------------------------------------------------
+
+export interface PausePlan {
+  /** いま実行中のセット名(セットの情報がない古いジョブは、アイテム名) */
+  currentName: string;
+  /** 一時停止すると保留に戻る(まだ ComfyUI に送られている待機中の)枚数 */
+  holdImages: number;
+  /** 保留に戻すジョブ(アイテムごと) */
+  hold: { entryId: string; promptIds: string[] }[];
+}
+
+/**
+ * いま実行中のジョブと同じセット(セット情報がなければ同じアイテム)の残りは続け、
+ * それ以外の待機中のジョブを、保留に戻す対象として数える。実行中のもの・テストと再生成は対象外。
+ */
+export function planPause(queue: { running: { promptId: string }[]; pending: { promptId: string }[] }): PausePlan | null {
+  const jobs = readJobs();
+  const entries = readEntries();
+  const runningIds = new Set(queue.running.map((q) => q.promptId));
+  const current = jobs.find((j) => runningIds.has(j.promptId) && j.kind === "batch") ?? jobs.find((j) => runningIds.has(j.promptId));
+  if (!current) return null;
+  const cur = entries[current.entryId];
+  const keeps = (entryId: string) => entryId === current.entryId || (!!cur?.setId && entries[entryId]?.setId === cur.setId);
+
+  const byEntry = new Map<string, string[]>();
+  for (const q of queue.pending) {
+    const j = jobs.find((x) => x.promptId === q.promptId);
+    if (!j || j.kind !== "batch" || keeps(j.entryId)) continue;
+    byEntry.set(j.entryId, [...(byEntry.get(j.entryId) ?? []), j.promptId]);
+  }
+  const hold = [...byEntry].map(([entryId, promptIds]) => ({ entryId, promptIds }));
+  return { currentName: cur?.setName ?? current.label, holdImages: hold.reduce((n, h) => n + h.promptIds.length, 0), hold };
+}
+
+/**
+ * 実行中のセットはそのまま最後まで続け、残りの待機中を保留に戻す。ComfyUI は何も実行しなくなるので、
+ * セットが終わると止まる。再開は保留の「開始」(いつもの手順)。
+ */
+export async function pauseAfterCurrentSet(): Promise<{ currentName: string; held: number }> {
+  const plan = planPause(await getQueue());
+  if (!plan) throw new UserError("実行中の生成がありません");
+  if (plan.holdImages === 0) throw new UserError("このセットのあとに待っている生成はありません(止めなくても、終わると止まります)");
+
+  const ids = plan.hold.flatMap((h) => h.promptIds);
+  await deletePending(ids);
+  // 消している間に実行が始まったものは、そのまま続ける(出力を取りこぼさないよう、記録も残す)
+  const nowRunning = new Set((await getQueue()).running.map((q) => q.promptId));
+  const removed = new Set(ids.filter((id) => !nowRunning.has(id)));
+
+  const entries = readEntries();
+  const toHold: HeldEntry[] = [];
+  for (const h of plan.hold) {
+    const mine = h.promptIds.filter((id) => removed.has(id));
+    const rec = entries[h.entryId];
+    if (mine.length === 0 || !rec) continue;
+    toHold.push({ id: randomUUID(), template: rec.template, count: mine.length, addedAt: Date.now(), ...(rec.setId ? { setId: rec.setId, setName: rec.setName } : {}) });
+  }
+  // 以降は await を挟まず、ジョブ・雛形・保留をまとめて更新する
+  updateJobs((js) => js.filter((j) => !removed.has(j.promptId)));
+  updateEntries((all) => {
+    const next = { ...all };
+    for (const h of plan.hold) {
+      const mine = h.promptIds.filter((id) => removed.has(id)).length;
+      const rec = next[h.entryId];
+      if (!rec || mine === 0) continue;
+      const left = rec.total - mine;
+      if (left <= 0) delete next[h.entryId];
+      else next[h.entryId] = { ...rec, total: left };
+    }
+    return next;
+  });
+  writeHeld([...toHold, ...readHeld()]);
+  return { currentName: plan.currentName, held: toHold.reduce((n, h) => n + h.count, 0) };
 }
 
 // ---- テスト生成(待たずに先頭へ割り込ませて1枚) ---------------------------------------------

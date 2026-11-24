@@ -57,6 +57,9 @@ export interface HeldEntry {
   /** 作る枚数 */
   count: number;
   addedAt: number;
+  /** 一括キューのセット(一時停止を「いまのセットが終わるまで」で区切るため) */
+  setId?: string;
+  setName?: string;
 }
 
 export function readHeld(): HeldEntry[] {
@@ -104,6 +107,8 @@ export interface EntryRecord {
   template: ItemTemplate;
   /** 開始時の総枚数 */
   total: number;
+  setId?: string;
+  setName?: string;
 }
 
 /**

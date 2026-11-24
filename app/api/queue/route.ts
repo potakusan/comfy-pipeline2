@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clearPending, deletePending, getQueue } from "@/lib/server/comfy";
 import { reconcileJobs } from "@/lib/server/reconcile";
 import { readEntries, readFailed, readHeld, readJobs, readRecent } from "@/lib/server/store";
-import { cancelEntry, redo, removeHeld, startHeld } from "@/lib/server/queue-ops";
+import { cancelEntry, pauseAfterCurrentSet, planPause, redo, removeHeld, startHeld } from "@/lib/server/queue-ops";
 import { interrupt } from "@/lib/server/comfy";
 import { getLive } from "@/lib/server/ws";
 import { fail } from "@/lib/server/http";
@@ -30,6 +30,10 @@ export async function GET() {
       running: queue.running.map((q) => describe(q.promptId)),
       pending: queue.pending.map((q) => describe(q.promptId)),
       groups,
+      pause: (() => {
+        const p = planPause(queue);
+        return p ? { currentName: p.currentName, holdImages: p.holdImages } : null;
+      })(),
       progress: live.progress,
       previewAt: live.previewAt,
       recent: readRecent().slice(0, 40),
@@ -42,6 +46,7 @@ export async function GET() {
 
 /**
  * { action: "start" }                      保留中をすべて ComfyUI のキューへ送って稼働開始
+ * { action: "pause-after-set" }             いま実行中のセットが終わったら止める(残りは保留に戻る。再開は「開始」)
  * { action: "remove-held", id | "all" }    保留を取り消す
  * { action: "redo", mode: "same"|"reroll", promptId? }  実行中の1枚をやり直す
  * { action: "cancel-entry", entryId }      そのアイテムの残りと実行中の1枚を止める
@@ -62,6 +67,8 @@ export async function POST(req: NextRequest) {
     switch (body.action) {
       case "start":
         return NextResponse.json(await startHeld());
+      case "pause-after-set":
+        return NextResponse.json(await pauseAfterCurrentSet());
       case "remove-held":
         removeHeld(body.id ?? "all");
         return NextResponse.json({ ok: true });

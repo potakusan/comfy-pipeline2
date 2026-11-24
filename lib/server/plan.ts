@@ -38,6 +38,9 @@ export interface PlannedItem {
   count: number;
   /** 一括キューのプリセット id(テスト生成で「どのプリセットを使ったか」を返すため) */
   batchPresetId?: string;
+  /** 一括キューのセット */
+  setId?: string;
+  setName?: string;
 }
 
 const byIds = (list: Preset[], ids?: string[]) => (ids ?? []).flatMap((id) => list.find((p) => p.id === id) ?? []);
@@ -125,7 +128,7 @@ export function buildPlan(req: PlanRequest, lib: Library = readLibrary()): Plann
           negativePrompt: p.negativePrompt ?? "",
           variableValues: { ...p.variableValues, ...req.variableValues },
         };
-        return { template, count: Math.max(1, Math.floor(b.countOverride ?? p.batchCount)), batchPresetId: p.id };
+        return { template, count: Math.max(1, Math.floor(b.countOverride ?? p.batchCount)), batchPresetId: p.id, setId: set.id, setName: set.name };
       });
   });
 }

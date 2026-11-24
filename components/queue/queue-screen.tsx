@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, Dices, Play, RotateCcw, Trash2, X } from "lucide-react";
+import { Ban, Dices, Pause, Play, RotateCcw, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import { api, usePoll } from "@/lib/client/use-poll";
 import type { QueueResponse } from "@/lib/client/types";
@@ -35,6 +35,16 @@ export function QueueScreen() {
       toast.error(e instanceof Error ? e.message : "開始できませんでした");
     } finally {
       setStarting(false);
+    }
+  }
+
+  async function pause() {
+    try {
+      const r = await api<{ currentName: string; held: number }>("/api/queue", "POST", { action: "pause-after-set" });
+      toast.success(`「${r.currentName}」が終わると止まります`, { description: `残り${r.held}枚は保留に戻しました。再開は「開始」を押してください` });
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "一時停止できませんでした");
     }
   }
 
@@ -177,6 +187,12 @@ export function QueueScreen() {
                     <Ban /> 中止
                   </Button>
                 </div>
+                {data.pause && data.pause.holdImages > 0 && (
+                  <Button variant="outline" size="lg" onClick={() => void pause()}>
+                    <Pause /> 「{data.pause.currentName}」が終わったら一時停止
+                    <span className="measured" style={{ marginLeft: 8 }}>残り{data.pause.holdImages}枚は保留へ</span>
+                  </Button>
+                )}
               </div>
             )}
           </section>
