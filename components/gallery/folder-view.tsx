@@ -14,6 +14,7 @@ import { Slider } from "@/components/ui/slider";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
 import { MoreSheet } from "./more-sheet";
 import { ResetReleaseButton } from "@/components/mosaic/reset-button";
+import { DeleteFolderButton } from "./delete-folder-button";
 import { Viewer, type ViewerImage } from "./viewer";
 
 interface Img {
@@ -350,6 +351,7 @@ export function FolderView({ folder }: { folder: string }) {
             入れ替え
           </button>
           {releasedTotal > 0 && <ResetReleaseButton folder={folder} variant="chip" onDone={refresh} />}
+          <DeleteFolderButton name={folder} variant="chip" summary={`${all.length}枚${releasedTotal > 0 ? "とリリース分" : ""}`} onDone={() => (window.location.href = "/gallery")} />
           {showIndex && (
             <Drawer open={indexOpen} onOpenChange={setIndexOpen}>
               <DrawerTrigger asChild>

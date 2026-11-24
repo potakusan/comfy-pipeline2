@@ -6,6 +6,7 @@ import { usePoll } from "@/lib/client/use-poll";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FolderView } from "./folder-view";
+import { DeleteFolderButton } from "./delete-folder-button";
 
 interface Folder {
   name: string;
@@ -67,7 +68,7 @@ function FolderList() {
             </h2>
             <ul className="cardgrid">
         {list.map((d) => (
-          <li key={d.name}>
+          <li key={d.name} style={{ position: "relative" }}>
             <Link href={`/gallery?folder=${encodeURIComponent(d.name)}`} className="card">
               <span className="card-thumb">
                 {d.firstImage && (
@@ -82,6 +83,7 @@ function FolderList() {
                 </span>
               </span>
             </Link>
+            <DeleteFolderButton name={d.name} variant="card" summary={`${d.count}枚${d.releaseCount > 0 ? "とリリース分" : ""}`} onDone={() => void reload()} />
           </li>
         ))}
       </ul>
