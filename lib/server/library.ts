@@ -127,12 +127,35 @@ export function deleteVariableDef(name: string): VariableDefs {
 
 // ---- LoRA の編集(強度・トリガーワードのみ) ---------------------------------------
 
-export function saveVariableLora(lora: Pick<LoraEntry, "name" | "strength" | "clipStrength" | "triggerWords">): boolean {
-  const list = readJson<LoraEntry[]>("variableLoras", []);
+export function saveVariableLora(lora: Pick<LoraEntry, "name" | "strength" | "clipStrength" | "triggerWords">, which: "variableLoras" | "fixedLoras" = "variableLoras"): boolean {
+  const list = readJson<LoraEntry[]>(which, []);
   const i = list.findIndex((l) => l.name === lora.name);
   if (i < 0) return false;
   list[i] = { ...list[i], ...lora };
-  writeJson("variableLoras", list);
+  writeJson(which, list);
+  return true;
+}
+
+// ---- 固定LoRA(全ての生成に必ず適用される LoRA) -----------------------------------------
+
+export function addFixedLora(lora: { name: string; strength: number; clipStrength: number; triggerWords: string; families?: ("sdxl" | "anima")[] }): "ok" | "duplicate" {
+  const list = readJson<LoraEntry[]>("fixedLoras", []);
+  if (list.some((l) => l.name === lora.name)) return "duplicate";
+  list.push({
+    name: lora.name,
+    strength: lora.strength,
+    clipStrength: lora.clipStrength,
+    triggerWords: lora.triggerWords,
+    ...(lora.families && lora.families.length > 0 && lora.families.join() !== "sdxl" ? { families: lora.families } : {}),
+  });
+  writeJson("fixedLoras", list);
+  return "ok";
+}
+
+export function deleteFixedLora(name: string): boolean {
+  const list = readJson<LoraEntry[]>("fixedLoras", []);
+  if (!list.some((l) => l.name === name)) return false;
+  writeJson("fixedLoras", list.filter((l) => l.name !== name));
   return true;
 }
 

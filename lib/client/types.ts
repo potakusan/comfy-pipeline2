@@ -11,6 +11,8 @@ export interface LibraryResponse {
   /** 設定タブで決めた既定の生成サイズ */
   defaultSize: { width: number; height: number };
   loras: { name: string; promptOnly: boolean }[];
+  /** 全ての生成に必ず適用される LoRA */
+  fixedLoras: { name: string }[];
   physical: SlimPreset[];
   count: SlimPreset[];
   pose: SlimPreset[];

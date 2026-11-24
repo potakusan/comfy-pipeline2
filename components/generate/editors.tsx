@@ -347,7 +347,7 @@ function CivitaiPanel({ info, words, onWords }: { info: CivitaiInfo; words: stri
 
 // ---- LoRA(強度・トリガーワード) ---------------------------------------------------------
 
-export function LoraEditor({ name, onClose, onSaved }: { name: string; onClose: () => void; onSaved: () => void }) {
+export function LoraEditor({ name, fixed, onClose, onSaved }: { name: string; fixed?: boolean; onClose: () => void; onSaved: () => void }) {
   const [lora, setLora] = useState<LoraEntry | null>(null);
   const [saving, setSaving] = useState(false);
   /** undefined = 取得中 / null = Civitai と紐づいていない(または取得できない) */
@@ -368,16 +368,16 @@ export function LoraEditor({ name, onClose, onSaved }: { name: string; onClose: 
   }, [lora?.name, lora?.isPromptOnly]);
 
   useEffect(() => {
-    edit<{ lora: LoraEntry }>({ action: "get-lora", name })
+    edit<{ lora: LoraEntry }>({ action: "get-lora", name, fixed: !!fixed })
       .then((r) => setLora(r.lora))
       .catch((e) => toast.error(e instanceof Error ? e.message : "読み込めませんでした"));
-  }, [name]);
+  }, [name, fixed]);
 
   async function save() {
     if (!lora) return;
     setSaving(true);
     try {
-      await edit({ action: "save-lora", lora });
+      await edit({ action: "save-lora", lora, fixed: !!fixed });
       toast.success("保存しました");
       onSaved();
       onClose();
@@ -390,7 +390,7 @@ export function LoraEditor({ name, onClose, onSaved }: { name: string; onClose: 
 
   return (
     <ScreenSheet
-      title="LoRAを編集"
+      title={fixed ? "固定LoRAを編集" : "LoRAを編集"}
       onClose={onClose}
       footer={
         <Button size="lg" className="flex-1" disabled={saving || !lora} onClick={() => void save()}>

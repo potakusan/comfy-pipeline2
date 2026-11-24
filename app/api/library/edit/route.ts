@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  addFixedLora,
   addVariableLora,
+  deleteFixedLora,
   deletePreset,
   deleteVariableDef,
   isPresetType,
@@ -66,8 +68,26 @@ export async function POST(req: NextRequest) {
       case "delete-variable":
         deleteVariableDef(String(b.name));
         return NextResponse.json({ ok: true });
+      case "list-fixed":
+        return NextResponse.json({ loras: lib.fixedLoras });
+      case "add-fixed-lora": {
+        const l = b.lora;
+        const name = String(l?.name ?? "").trim();
+        if (!name || /[\/:*?"<>|]/.test(name)) return NextResponse.json({ error: "LoRA を選んでください" }, { status: 400 });
+        const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) ? Number(v) : d);
+        const r = addFixedLora({
+          name,
+          strength: num(l?.strength, 1),
+          clipStrength: num(l?.clipStrength, 1),
+          triggerWords: String(l?.triggerWords ?? ""),
+          families: Array.isArray(l?.families) ? l.families.filter((f: string) => f === "sdxl" || f === "anima") : undefined,
+        });
+        return r === "ok" ? NextResponse.json({ ok: true, name }) : NextResponse.json({ error: "同じ名前がすでに固定されています" }, { status: 409 });
+      }
+      case "delete-fixed-lora":
+        return deleteFixedLora(String(b.name)) ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "見つかりません" }, { status: 404 });
       case "get-lora": {
-        const l = lib.variableLoras.find((x) => x.name === b.name);
+        const l = (b.fixed ? lib.fixedLoras : lib.variableLoras).find((x) => x.name === b.name);
         return l ? NextResponse.json({ lora: l }) : NextResponse.json({ error: "見つかりません" }, { status: 404 });
       }
       case "save-lora": {
@@ -77,7 +97,7 @@ export async function POST(req: NextRequest) {
           strength: Number(l?.strength),
           clipStrength: Number(l?.clipStrength),
           triggerWords: String(l?.triggerWords ?? ""),
-        });
+        }, b.fixed ? "fixedLoras" : "variableLoras");
         return ok ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "LoRAが見つかりません" }, { status: 404 });
       }
       case "add-lora": {

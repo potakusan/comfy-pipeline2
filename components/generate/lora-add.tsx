@@ -73,10 +73,13 @@ export function DanbooruImport({ value, onChange }: { value: string; onChange: (
  */
 export function LoraAddSheet({
   initial,
+  fixed,
   onClose,
   onAdded,
 }: {
   initial?: { name: string; trainedWords: string[] };
+  /** true: 「固定LoRA」(全ての生成に必ず適用)として追加する。タグのみは選べない */
+  fixed?: boolean;
   onClose: () => void;
   onAdded: (name: string) => void;
 }) {
@@ -112,8 +115,8 @@ export function LoraAddSheet({
   async function save() {
     setSaving(true);
     try {
-      const r = await api<{ name: string }>("/api/library/edit", "POST", { action: "add-lora", lora: { name, strength, clipStrength: clip, triggerWords: words, promptOnly, families } });
-      toast.success(promptOnly ? "タグのみの項目を追加しました" : "LoRA をリストに追加しました");
+      const r = await api<{ name: string }>("/api/library/edit", "POST", { action: fixed ? "add-fixed-lora" : "add-lora", lora: { name, strength, clipStrength: clip, triggerWords: words, promptOnly, families } });
+      toast.success(fixed ? "固定LoRAに追加しました" : promptOnly ? "タグのみの項目を追加しました" : "LoRA をリストに追加しました");
       onAdded(r.name);
       onClose();
     } catch (e) {
@@ -127,7 +130,7 @@ export function LoraAddSheet({
   const needsFile = fileMode && !initial;
   return (
     <ScreenSheet
-      title="LoRA をリストに追加"
+      title={fixed ? "固定LoRAを追加" : "LoRA をリストに追加"}
       onClose={onClose}
       footer={
         <Button size="lg" className="flex-1" disabled={saving || !name.trim()} onClick={() => void save()}>
@@ -135,7 +138,7 @@ export function LoraAddSheet({
         </Button>
       }
     >
-      {!initial && (
+      {!initial && !fixed && (
         <div role="group" aria-label="種類" style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
           <button type="button" className="chip" style={{ minHeight: 44 }} aria-pressed={fileMode} onClick={() => setPromptOnly(false)}>
             LoRA ファイル

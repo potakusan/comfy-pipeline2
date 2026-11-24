@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, FlaskConical, Layers, Pencil, Plus, Save, Shuffle } from "lucide-react";
+import { Check, ChevronRight, FlaskConical, Layers, Pencil, Plus, Save, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import { api, usePoll } from "@/lib/client/use-poll";
 import type { PresetType } from "@/lib/comfy/comfy-types";
@@ -14,6 +14,7 @@ import { TagField } from "@/components/shell/tag-field";
 import { Picker, type PickItem } from "./picker";
 import { BatchPresetEditor, LoraEditor, PresetEditor, VariableEditor } from "./editors";
 import { LoraAddSheet } from "./lora-add";
+import { FixedLorasSheet } from "./fixed-loras";
 import { TestResult, type TestRun } from "./test-result";
 
 interface Form {
@@ -49,6 +50,7 @@ type Editor =
   | { kind: "variable"; name: string | null }
   | { kind: "lora"; name: string }
   | { kind: "lora-add" }
+  | { kind: "fixed-loras" }
   | { kind: "batch"; setId: string; presetId: string };
 
 interface PlanPreview {
@@ -251,6 +253,13 @@ export function GenerateScreen() {
               onEditItem={(name) => openEditor({ kind: "lora", name })}
               onAdd={() => openEditor({ kind: "lora-add" })}
             />
+            <button type="button" className="row w-full text-left" onClick={() => openEditor({ kind: "fixed-loras" })} style={{ background: "var(--color-paper-2)", border: 0, color: "inherit" }}>
+              <span className="label" style={{ width: "5.5em", flexShrink: 0 }}>固定LoRA</span>
+              <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: lib.fixedLoras.length ? "var(--color-ink)" : "var(--color-muted)" }}>
+                {lib.fixedLoras.length ? lib.fixedLoras.map((l) => l.name).join("、") : "なし"}
+              </span>
+              <ChevronRight size={18} aria-hidden style={{ color: "var(--color-muted)" }} />
+            </button>
             <Picker
               label="身体"
               multiple
@@ -380,6 +389,7 @@ export function GenerateScreen() {
         if (e.kind === "preset")
           return <PresetEditor key={key} type={e.type} id={e.id} categories={lib.categories} onClose={closeEditor} onSaved={() => void refresh()} />;
         if (e.kind === "variable") return <VariableEditor key={key} name={e.name} onClose={closeEditor} onSaved={() => void refresh()} />;
+        if (e.kind === "fixed-loras") return <FixedLorasSheet key={key} onClose={closeEditor} onChanged={() => void refresh()} />;
         if (e.kind === "lora-add")
           return (
             <LoraAddSheet
