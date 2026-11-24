@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { X } from "lucide-react";
+import { parseTags, removeTag } from "@/lib/comfy/tag-list";
 import { Textarea } from "@/components/ui/textarea";
 
 interface Tag {
@@ -95,12 +97,36 @@ export function TagField({ value, onChange, multiline, rows = 6, id, placeholder
     spellCheck: false,
   };
 
+  const tokens = parseTags(value);
+
+  /** チップの本体をタップ: その語を選択して、入力欄で書き換えられるようにする */
+  function select(start: number, end: number) {
+    const el = ref.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(start, end);
+  }
+
   return (
     <div style={{ display: "grid", gap: "var(--space-xs)", minWidth: 0 }}>
       {multiline ? (
         <Textarea ref={ref} rows={rows} {...common} />
       ) : (
         <Input ref={ref} {...common} />
+      )}
+      {tokens.length > 0 && (
+        <ul className="tag-cloud" aria-label={`入力済みのタグ(${tokens.length}個)`}>
+          {tokens.map((t, i) => (
+            <li key={`${i}-${t.start}`} className="tag-chip" data-variable={t.variable}>
+              <button type="button" className="tag-chip-text" onClick={() => select(t.start, t.end)} title="タップで入力欄の語を選択">
+                {t.text}
+              </button>
+              <button type="button" className="tag-chip-x" aria-label={`${t.text} を削除`} onClick={() => onChange(removeTag(value, t))}>
+                <X size={14} aria-hidden />
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
       {tags.length > 0 && (
         <ul className="tag-suggest" role="listbox" aria-label="タグの候補">
