@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronRight, Pencil, Plus, Search } from "lucide-react";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger, DrawerClose } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ export function Picker(props: Single | Multi) {
   const { label, items, categories = [], emptyText = "候補がありません", onEditItem, onAdd } = props;
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
 
   const selected = props.multiple ? props.value : props.value ? [props.value] : [];
   const summary = selected.length
@@ -57,6 +58,19 @@ export function Picker(props: Single | Multi) {
     const rest = hit.filter((i) => !i.category || !categories.some((c) => c.id === i.category));
     return [...(rest.length ? [{ title: named.length ? "未分類" : "", items: rest }] : []), ...named];
   }, [items, categories, query]);
+
+  // 開いたときに、選択済みの項目(複数なら先頭のもの)が見える位置まで、一覧を自動でスクロールする
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => {
+      const box = listRef.current;
+      const el = box?.querySelector<HTMLElement>('[data-selected="true"]');
+      if (!box || !el) return;
+      const delta = el.getBoundingClientRect().top - box.getBoundingClientRect().top - (box.clientHeight - el.offsetHeight) / 2;
+      box.scrollTop += delta;
+    }, 60);
+    return () => clearTimeout(t);
+  }, [open]);
 
   function toggle(id: string) {
     if (props.multiple) {
@@ -93,7 +107,7 @@ export function Picker(props: Single | Multi) {
           <Search size={16} aria-hidden style={{ position: "absolute", left: 26, top: 14, color: "var(--color-muted)" }} />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="検索" style={{ paddingLeft: 36 }} aria-label={`${label}を検索`} />
         </div>
-        <div style={{ overflowY: "auto", maxHeight: "55dvh", overscrollBehavior: "contain" }}>
+        <div ref={listRef} style={{ overflowY: "auto", maxHeight: "55dvh", overscrollBehavior: "contain" }}>
           {items.length === 0 && <p className="label" style={{ padding: "var(--space-lg) var(--space-md)" }}>{emptyText}</p>}
           {items.length > 0 && groups.length === 0 && <p className="label" style={{ padding: "var(--space-lg) var(--space-md)" }}>「{query}」に一致するものがありません</p>}
           {groups.map((g) => (
@@ -103,7 +117,7 @@ export function Picker(props: Single | Multi) {
                 {g.items.map((it) => {
                   const on = selected.includes(it.id);
                   return (
-                    <li key={it.id} style={{ display: "flex", alignItems: "stretch", background: on ? "var(--color-accent-soft)" : "var(--color-paper-2)", borderTop: "var(--rule-hair) solid var(--color-rule)" }}>
+                    <li key={it.id} data-selected={on} style={{ display: "flex", alignItems: "stretch", background: on ? "var(--color-accent-soft)" : "var(--color-paper-2)", borderTop: "var(--rule-hair) solid var(--color-rule)" }}>
                       <button
                         type="button"
                         onClick={() => toggle(it.id)}
