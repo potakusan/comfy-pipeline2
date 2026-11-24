@@ -15,9 +15,8 @@ export async function GET() {
     const { width, height } = readSettings();
     return NextResponse.json({
       defaultSize: { width, height },
-      loras: lib.variableLoras
-        .filter((l) => !l.isArchived)
-        .map((l) => ({ name: l.name, promptOnly: !!l.isPromptOnly })),
+      // アーカイブ済みも返す(画面で「アーカイブ」として分けて見せ、戻せるように)。実行の選択肢には出さない
+      loras: lib.variableLoras.map((l) => ({ name: l.name, promptOnly: !!l.isPromptOnly, archived: !!l.isArchived })),
       fixedTags: lib.fixedTags,
       negativePrompt: lib.negativePrompt,
       fixedLoras: lib.fixedLoras.map((l) => ({ name: l.name })),

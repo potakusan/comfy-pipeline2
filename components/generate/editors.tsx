@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "@/lib/client/use-poll";
 import { PRESET_LABEL, type LibraryResponse } from "@/lib/client/types";
@@ -397,6 +397,22 @@ export function LoraEditor({ name, fixed, onClose, onSaved, onDeleted }: { name:
     }
   }
 
+  /** アーカイブに移す/戻す。移すと、通常の選択肢・プリセット実行から外れる(削除はしない) */
+  async function toggleArchive() {
+    if (!lora) return;
+    setSaving(true);
+    try {
+      const next = !lora.isArchived;
+      await edit({ action: "set-lora-archived", name: lora.name, archived: next });
+      toast.success(next ? "アーカイブに移しました" : "アーカイブから戻しました");
+      onSaved();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "移せませんでした");
+      setSaving(false);
+    }
+  }
+
   async function save() {
     if (!lora) return;
     setSaving(true);
@@ -434,6 +450,11 @@ export function LoraEditor({ name, fixed, onClose, onSaved, onDeleted }: { name:
       ) : (
         <>
           <p className="measured" style={{ overflowWrap: "anywhere" }}>{lora.name}</p>
+          {onDeleted && !fixed && (
+            <Button variant={lora.isArchived ? "default" : "outline"} onClick={() => void toggleArchive()} disabled={saving}>
+              {lora.isArchived ? <ArchiveRestore /> : <Archive />} {lora.isArchived ? "アーカイブから戻す(選べるようになります)" : "アーカイブに移す(選択肢から外す)"}
+            </Button>
+          )}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-sm)" }}>
             <Field label="強度" htmlFor="l-str">
               <Input id="l-str" type="number" inputMode="decimal" step={0.05} value={lora.strength} onChange={(e) => setLora({ ...lora, strength: Number(e.target.value) })} />

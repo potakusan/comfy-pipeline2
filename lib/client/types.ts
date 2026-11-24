@@ -10,7 +10,7 @@ export interface SlimPreset {
 export interface LibraryResponse {
   /** 設定タブで決めた既定の生成サイズ */
   defaultSize: { width: number; height: number };
-  loras: { name: string; promptOnly: boolean }[];
+  loras: { name: string; promptOnly: boolean; archived: boolean }[];
   /** 固定ポジティブプロンプト(全ての生成の先頭に付く) */
   fixedTags: string;
   /** 固定ネガティブプロンプト(全ての生成のネガティブに付く) */

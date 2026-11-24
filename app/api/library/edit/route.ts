@@ -5,6 +5,7 @@ import {
   deleteFixedLora,
   deleteVariableLora,
   saveFixedTags,
+  setVariableLoraArchived,
   saveNegativePrompt,
   deletePreset,
   deleteVariableDef,
@@ -97,6 +98,8 @@ export async function POST(req: NextRequest) {
         });
         return r === "ok" ? NextResponse.json({ ok: true, name }) : NextResponse.json({ error: "同じ名前がすでに固定されています" }, { status: 409 });
       }
+      case "set-lora-archived":
+        return setVariableLoraArchived(String(b.name), !!b.archived) ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "見つかりません" }, { status: 404 });
       case "delete-lora":
         return deleteVariableLora(String(b.name)) ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "見つかりません" }, { status: 404 });
       case "delete-fixed-lora":
@@ -129,6 +132,7 @@ export async function POST(req: NextRequest) {
           promptOnly,
           families: Array.isArray(l?.families) ? l.families.filter((f: string) => f === "sdxl" || f === "anima") : undefined,
         });
+        if (r === "archived") return NextResponse.json({ error: "同じ名前のキャラクターが、アーカイブに入っています。キャラクターの一覧の「アーカイブ」から、戻してください", archived: true }, { status: 409 });
         return r === "ok" ? NextResponse.json({ ok: true, name }) : NextResponse.json({ error: "同じ名前がすでに登録されています" }, { status: 409 });
       }
       case "get-batch-preset": {

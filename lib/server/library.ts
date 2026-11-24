@@ -162,6 +162,18 @@ export function addFixedLora(lora: { name: string; strength: number; clipStrengt
   return "ok";
 }
 
+/** キャラクターをアーカイブに移す/戻す(v1 と同じ。アーカイブ済みは、通常の選択肢・プリセット実行から外れる)。 */
+export function setVariableLoraArchived(name: string, archived: boolean): boolean {
+  const list = readJson<LoraEntry[]>("variableLoras", []);
+  const i = list.findIndex((l) => l.name === name);
+  if (i < 0) return false;
+  const { isArchived: _drop, ...rest } = list[i];
+  void _drop;
+  list[i] = archived ? { ...rest, isArchived: true } : rest;
+  writeJson("variableLoras", list);
+  return true;
+}
+
 /** 生成画面の「キャラクター」(variable-loras.json)の項目をリストから外す。LoRA のファイルは消さない。 */
 export function deleteVariableLora(name: string): boolean {
   const list = readJson<LoraEntry[]>("variableLoras", []);
@@ -178,9 +190,10 @@ export function deleteFixedLora(name: string): boolean {
 }
 
 /** 生成画面の「LoRA」リストに追加する。promptOnly = LoRA ファイルを使わず、タグ(とフォルダ名)だけのもの。 */
-export function addVariableLora(lora: { name: string; strength: number; clipStrength: number; triggerWords: string; promptOnly: boolean; families?: ("sdxl" | "anima")[] }): "ok" | "duplicate" {
+export function addVariableLora(lora: { name: string; strength: number; clipStrength: number; triggerWords: string; promptOnly: boolean; families?: ("sdxl" | "anima")[] }): "ok" | "duplicate" | "archived" {
   const list = readJson<LoraEntry[]>("variableLoras", []);
-  if (list.some((l) => l.name === lora.name)) return "duplicate";
+  const same = list.find((l) => l.name === lora.name);
+  if (same) return same.isArchived ? "archived" : "duplicate";
   const entry: LoraEntry = {
     name: lora.name,
     strength: lora.promptOnly ? 1 : lora.strength,
