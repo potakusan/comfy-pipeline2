@@ -225,7 +225,8 @@ export function GenerateScreen() {
     );
   }
 
-  const loraItems: PickItem[] = lib.loras.map((l) => ({ id: l.name, name: l.name, note: l.promptOnly ? "タグのみ" : undefined }));
+  // 新しく追加したものが上に来るよう、登録順(variable-loras.json の並び)を逆にして見せる
+  const loraItems: PickItem[] = [...lib.loras].reverse().map((l) => ({ id: l.name, name: l.name, note: l.promptOnly ? "タグのみ" : undefined }));
   const setItems: PickItem[] = lib.sets.map((s) => ({ id: s.id, name: s.name, note: `${s.presets.length}件` }));
   const addOf = (type: PresetType) => () => openEditor({ kind: "preset", type, id: null });
   const editOf = (type: PresetType) => (id: string) => openEditor({ kind: "preset", type, id });
