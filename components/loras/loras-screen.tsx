@@ -86,7 +86,7 @@ async function copyText(text: string) {
   toast.success("コピーしました");
 }
 
-function Card({ thumb, title, lines, badge, onClick }: { thumb: string | null; title: string; lines: string[]; badge?: string; onClick: () => void }) {
+function Card({ thumb, thumbs, title, lines, badge, onClick }: { thumb: string | null; thumbs?: string[]; title: string; lines: string[]; badge?: string; onClick: () => void }) {
   return (
     <li>
       <button type="button" className="card" onClick={onClick} style={{ width: "100%", textAlign: "left", font: "inherit" }}>
@@ -94,6 +94,14 @@ function Card({ thumb, title, lines, badge, onClick }: { thumb: string | null; t
           {thumb ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={thumb} alt="" loading="lazy" referrerPolicy="no-referrer" />
+          ) : thumbs && thumbs.length > 0 ? (
+            // 表紙がないコレクション: 中の LoRA のサムネイルを 2×2 で並べる
+            <span aria-hidden style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 2 }}>
+              {thumbs.map((u) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={u} src={u} alt="" loading="lazy" referrerPolicy="no-referrer" style={{ position: "static", width: "100%", height: "100%", objectFit: "cover", minWidth: 0, minHeight: 0 }} />
+              ))}
+            </span>
           ) : (
             <span aria-hidden style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", fontSize: "var(--text-xl)", color: "var(--color-muted)" }}>
               {Array.from(title)[0] ?? "?"}
@@ -392,6 +400,22 @@ function SearchTab({ onOpen }: { onOpen: (id: number) => void }) {
   );
 }
 
+/** コレクションのカード。表紙がなければ、中の LoRA のサムネイルを取りに行く。 */
+function CollectionTile({ c, onOpen }: { c: CollectionCard; onOpen: () => void }) {
+  const [thumbs, setThumbs] = useState<string[]>([]);
+  useEffect(() => {
+    if (c.thumb) return;
+    let alive = true;
+    api<{ thumbs: string[] }>(`/api/civitai/collection-preview?id=${c.id}`, "GET")
+      .then((r) => alive && setThumbs(r.thumbs))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [c.id, c.thumb]);
+  return <Card thumb={c.thumb} thumbs={thumbs} title={c.name} lines={c.owner && !c.isOwner ? [`by ${c.owner}`] : []} onClick={onOpen} />;
+}
+
 // ---- コレクション ------------------------------------------------------------------------
 
 function CollectionsTab({ onOpen }: { onOpen: (id: number) => void }) {
@@ -450,13 +474,13 @@ function CollectionsTab({ onOpen }: { onOpen: (id: number) => void }) {
       {followed.length > 0 && <h3 style={{ fontSize: "var(--text-md)", maxWidth: "none" }}>フォロー中 <span className="measured">{followed.length}</span></h3>}
       <ul className="cardgrid">
         {followed.map((c) => (
-          <Card key={c.id} thumb={c.thumb} title={c.name} lines={c.owner ? [`by ${c.owner}`] : []} onClick={() => setOpen(c)} />
+          <CollectionTile key={c.id} c={c} onOpen={() => setOpen(c)} />
         ))}
       </ul>
       {mine.length > 0 && <h3 style={{ fontSize: "var(--text-md)", maxWidth: "none" }}>自分のコレクション <span className="measured">{mine.length}</span></h3>}
       <ul className="cardgrid">
         {mine.map((c) => (
-          <Card key={c.id} thumb={c.thumb} title={c.name} lines={[]} onClick={() => setOpen(c)} />
+          <CollectionTile key={c.id} c={c} onOpen={() => setOpen(c)} />
         ))}
       </ul>
       {shown.length === 0 && <p className="label">コレクションがありません。</p>}

@@ -230,6 +230,25 @@ export async function collectionModels(id: number, opts: { cursor?: string; illu
   return { items, nextCursor: res.nextCursor ?? null };
 }
 
+const previewCache = new Map<number, { at: number; thumbs: string[] }>();
+let previewChain: Promise<unknown> = Promise.resolve();
+
+/** コレクションに表紙がないときの代わりに、中の LoRA のサムネイルを最大4枚。取得は1件ずつ直列にし、10分は覚えておく。 */
+export function collectionPreview(id: number): Promise<string[]> {
+  requireKey();
+  if (!Number.isInteger(id) || id <= 0) throw new UserError("コレクションの指定が不正です");
+  const hit = previewCache.get(id);
+  if (hit && Date.now() - hit.at < 600_000) return Promise.resolve(hit.thumbs);
+  const run = previewChain.then(async () => {
+    const res = await trpcGet<{ items: TrpcModel[] }>("model.getAll", { collectionId: id, limit: 12, period: "AllTime", sort: "Newest", browsingLevel: 31, types: ["LORA"] });
+    const thumbs = res.items.map((m) => fromUuid(m.images?.find((i) => i.type !== "video")?.url, 300)).filter((u): u is string => !!u).slice(0, 4);
+    previewCache.set(id, { at: Date.now(), thumbs });
+    return thumbs;
+  });
+  previewChain = run.catch(() => undefined);
+  return run;
+}
+
 // ---- モデル詳細・ダウンロード -----------------------------------------------------------------
 
 export interface VersionInfo {
