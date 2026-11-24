@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { getCivitaiKey, getLoraDir } from "./env";
+import { DATA_DIR, getCivitaiKey, getLoraDir } from "./env";
 import { createMemJob, finishJob, logJob } from "./jobs-memory";
 import { UserError } from "./http";
 
@@ -230,19 +230,42 @@ export async function collectionModels(id: number, opts: { cursor?: string; illu
   return { items, nextCursor: res.nextCursor ?? null };
 }
 
-const previewCache = new Map<number, { at: number; thumbs: string[] }>();
+/** コレクションのサムネイルは、一度取ったらディスクに残して、そのまま使い続ける(コレクションの中身は頻繁には変わらないため)。 */
+const PREVIEW_FILE = path.join(DATA_DIR, "collection-previews.json");
+let previewCache: Record<string, string[]> | null = null;
 let previewChain: Promise<unknown> = Promise.resolve();
 
-/** コレクションに表紙がないときの代わりに、中の LoRA のサムネイルを最大4枚。取得は1件ずつ直列にし、10分は覚えておく。 */
+function loadPreviews(): Record<string, string[]> {
+  if (!previewCache) {
+    try {
+      previewCache = JSON.parse(fs.readFileSync(PREVIEW_FILE, "utf8")) as Record<string, string[]>;
+    } catch {
+      previewCache = {};
+    }
+  }
+  return previewCache;
+}
+
+function savePreviews(): void {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = `${PREVIEW_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(previewCache), "utf8");
+  fs.renameSync(tmp, PREVIEW_FILE);
+}
+
+/** コレクションに表紙がないときの代わりに、中の LoRA のサムネイルを最大4枚。初回だけ Civitai から1件ずつ取る。 */
 export function collectionPreview(id: number): Promise<string[]> {
-  requireKey();
   if (!Number.isInteger(id) || id <= 0) throw new UserError("コレクションの指定が不正です");
-  const hit = previewCache.get(id);
-  if (hit && Date.now() - hit.at < 600_000) return Promise.resolve(hit.thumbs);
+  const cache = loadPreviews();
+  if (cache[id]) return Promise.resolve(cache[id]);
+  requireKey();
   const run = previewChain.then(async () => {
     const res = await trpcGet<{ items: TrpcModel[] }>("model.getAll", { collectionId: id, limit: 12, period: "AllTime", sort: "Newest", browsingLevel: 31, types: ["LORA"] });
     const thumbs = res.items.map((m) => fromUuid(m.images?.find((i) => i.type !== "video")?.url, 300)).filter((u): u is string => !!u).slice(0, 4);
-    previewCache.set(id, { at: Date.now(), thumbs });
+    if (thumbs.length > 0) {
+      cache[id] = thumbs; // 空の結果は覚えない(次回また取りに行く)
+      savePreviews();
+    }
     return thumbs;
   });
   previewChain = run.catch(() => undefined);
