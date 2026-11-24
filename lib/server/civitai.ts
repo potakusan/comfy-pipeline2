@@ -272,6 +272,102 @@ export function collectionPreview(id: number): Promise<string[]> {
   return run;
 }
 
+// ---- 手元の LoRA に紐づく Civitai の情報(生成画面の「LoRAを編集」用) ------------------------------
+
+export function htmlToText(html: string): string {
+  const named: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+  return html
+    .replace(/<\s*br\s*\/?>/gi, "\n")
+    .replace(/<\/\s*(p|div|h[1-6]|ul|ol|blockquote|pre)\s*>/gi, "\n")
+    .replace(/<\s*li[^>]*>/gi, "・")
+    .replace(/<\/\s*li\s*>/gi, "\n")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (m, e: string) => {
+      if (e[0] === "#") {
+        const code = e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+        return Number.isFinite(code) && code > 0 && code < 0x110000 ? String.fromCodePoint(code) : m;
+      }
+      return named[e.toLowerCase()] ?? m;
+    })
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export interface LoraCivitaiInfo {
+  linked: boolean;
+  modelId?: number;
+  url?: string;
+  name?: string;
+  creator?: string | null;
+  versionName?: string;
+  trainedWords?: string[];
+  images?: string[];
+  description?: string;
+}
+
+const INFO_FILE = path.join(DATA_DIR, "civitai-info.json");
+let infoCache: Record<string, LoraCivitaiInfo> | null = null;
+
+function loadInfo(): Record<string, LoraCivitaiInfo> {
+  if (!infoCache) {
+    try {
+      infoCache = JSON.parse(fs.readFileSync(INFO_FILE, "utf8")) as Record<string, LoraCivitaiInfo>;
+    } catch {
+      infoCache = {};
+    }
+  }
+  return infoCache;
+}
+
+/**
+ * LoRA 名(拡張子なし)から、Civitai でダウンロードしたときに残したメタデータをたどって、作成者が設定したタグ・サムネ・説明文を返す。
+ * Civitai と紐づいていない LoRA(手で置いたもの・タグのみ)は linked: false。取得した内容はディスクに残し、以降はそれを使う。
+ */
+export async function loraCivitaiInfo(name: string): Promise<LoraCivitaiInfo> {
+  const base = path.basename(name || "").replace(MODEL_EXT, "");
+  if (!base || base !== (name || "").replace(MODEL_EXT, "")) return { linked: false };
+  let dir: string;
+  try {
+    dir = getLoraDir();
+  } catch {
+    return { linked: false };
+  }
+  const meta = readMeta(dir, base);
+  const modelId = typeof meta.modelId === "number" ? meta.modelId : null;
+  if (!modelId) return { linked: false };
+  const versionId = typeof meta.versionId === "number" ? meta.versionId : null;
+
+  const key = `${modelId}:${versionId ?? base}`;
+  const cache = loadInfo();
+  if (cache[key]) return cache[key];
+  requireKey();
+
+  const m = await civGet<{ id: number; name: string; description?: string; creator?: { username?: string }; modelVersions?: (RestVersion & { description?: string })[] }>(`${API}/models/${modelId}`);
+  const versions = m.modelVersions ?? [];
+  const v =
+    versions.find((x) => x.id === versionId) ??
+    versions.find((x) => (x.files ?? []).some((f) => path.basename(f.name).replace(MODEL_EXT, "") === base)) ??
+    versions[0];
+  const info: LoraCivitaiInfo = {
+    linked: true,
+    modelId,
+    url: `https://civitai.com/models/${modelId}${v ? `?modelVersionId=${v.id}` : ""}`,
+    name: m.name,
+    creator: m.creator?.username ?? null,
+    versionName: v?.name,
+    trainedWords: v?.trainedWords ?? (Array.isArray(meta.trainedWords) ? meta.trainedWords.map(String) : []),
+    images: (v?.images ?? []).filter((i) => i.type !== "video" && i.url).slice(0, 8).map((i) => sized(i.url, 450)!),
+    description: htmlToText([m.description ?? "", v?.description ? `【${v.name}】\n${v.description}` : ""].filter(Boolean).join("\n\n")),
+  };
+  cache[key] = info;
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  const tmp = `${INFO_FILE}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(cache), "utf8");
+  fs.renameSync(tmp, INFO_FILE);
+  return info;
+}
+
 // ---- モデル詳細・ダウンロード -----------------------------------------------------------------
 
 export interface VersionInfo {

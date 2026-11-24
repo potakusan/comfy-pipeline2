@@ -18,7 +18,7 @@ interface LocalLora {
 }
 
 /** Civitai のトリガーワードは、そのまま(重みや括弧も崩さず)後ろに足す。すでにあれば足さない。 */
-function appendWord(existing: string, word: string): string {
+export function appendWord(existing: string, word: string): string {
   const have = existing.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
   return have.includes(word) ? existing : [...have, word].join(", ");
 }

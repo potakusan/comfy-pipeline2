@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ScreenSheet } from "@/components/shell/screen-sheet";
 import { TagField } from "@/components/shell/tag-field";
 import { Picker } from "./picker";
-import { DanbooruImport } from "./lora-add";
+import { appendWord, DanbooruImport } from "./lora-add";
 
 const edit = <T,>(body: Record<string, unknown>) => api<T>("/api/library/edit", "POST", body);
 const mono = { fontFamily: "var(--font-outlier)", fontSize: "var(--text-sm)" } as const;
@@ -264,11 +264,108 @@ export function VariableEditor({ name: initialName, onClose, onSaved }: {
   );
 }
 
+interface CivitaiInfo {
+  linked: boolean;
+  url?: string;
+  name?: string;
+  creator?: string | null;
+  versionName?: string;
+  trainedWords?: string[];
+  images?: string[];
+  description?: string;
+}
+
+/** Civitai で提供されている、作成者のタグ・サムネ・説明文。Civitai と紐づいた LoRA では Danbooru の代わりに出す。 */
+function CivitaiPanel({ info, words, onWords }: { info: CivitaiInfo; words: string; onWords: (v: string) => void }) {
+  const trained = info.trainedWords ?? [];
+  const have = new Set(words.split(/[,\n]/).map((s) => s.trim()));
+  const images = info.images ?? [];
+  const [cover, setCover] = useState(0);
+  return (
+    <section className="panel panel-body" aria-label="Civitai の情報">
+      <h3 style={{ fontSize: "var(--text-md)", maxWidth: "none" }}>Civitai</h3>
+      <p className="label" style={{ overflowWrap: "anywhere" }}>
+        {info.name}
+        {info.versionName ? ` / ${info.versionName}` : ""}
+        {info.creator ? ` ／ by ${info.creator}` : ""}
+        {info.url && (
+          <>
+            {" ／ "}
+            <a href={info.url} target="_blank" rel="noreferrer" style={{ textDecoration: "underline" }}>
+              ページを開く
+            </a>
+          </>
+        )}
+      </p>
+
+      {images.length > 0 && (
+        <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={images[cover]} alt="作成者が設定したサムネイル" referrerPolicy="no-referrer" style={{ width: "100%", maxWidth: 320, maxHeight: "50dvh", objectFit: "contain", justifySelf: "center", background: "var(--color-paper-3)", borderRadius: "var(--radius-pill)" }} />
+          {images.length > 1 && (
+            <div style={{ display: "flex", gap: "var(--space-xs)", overflowX: "auto", paddingBottom: 4 }}>
+              {images.map((u, i) => (
+                <button key={u} type="button" aria-label={`画像${i + 1}を表示`} onClick={() => setCover(i)} style={{ flex: "none", padding: 0, border: 0, background: "none" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={u} alt="" referrerPolicy="no-referrer" style={{ height: 56, borderRadius: 4, outline: i === cover ? "3px solid var(--color-ink)" : "1px solid var(--color-rule)" }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+        <span className="label">作成者のタグ(タップでトリガーワードに追加)</span>
+        {trained.length === 0 ? (
+          <p className="label" style={{ fontSize: "var(--text-xs)" }}>この LoRA にはタグが設定されていません。</p>
+        ) : (
+          <>
+            <div style={{ display: "flex", gap: "var(--space-xs)", flexWrap: "wrap" }}>
+              {trained.map((w) => (
+                <button key={w} type="button" className="chip" data-on={have.has(w)} onClick={() => onWords(appendWord(words, w))} style={{ minHeight: 40, overflowWrap: "anywhere", textAlign: "left" }}>
+                  {w}
+                </button>
+              ))}
+            </div>
+            <Button variant="outline" onClick={() => onWords(trained.reduce((acc, w) => appendWord(acc, w), words))}>
+              すべて追加
+            </Button>
+          </>
+        )}
+      </div>
+
+      {info.description && (
+        <details className="accordion">
+          <summary>説明文</summary>
+          <p style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: "40dvh", overflowY: "auto", margin: 0 }}>{info.description}</p>
+        </details>
+      )}
+    </section>
+  );
+}
+
 // ---- LoRA(強度・トリガーワード) ---------------------------------------------------------
 
 export function LoraEditor({ name, onClose, onSaved }: { name: string; onClose: () => void; onSaved: () => void }) {
   const [lora, setLora] = useState<LoraEntry | null>(null);
   const [saving, setSaving] = useState(false);
+  /** undefined = 取得中 / null = Civitai と紐づいていない(または取得できない) */
+  const [civ, setCiv] = useState<CivitaiInfo | null | undefined>(undefined);
+
+  useEffect(() => {
+    // タグのみの項目は LoRA ファイルがないので、Civitai の情報は引かない
+    if (!lora || lora.isPromptOnly) return;
+    let alive = true;
+    api<CivitaiInfo>(`/api/civitai/lora-info?name=${encodeURIComponent(lora.name)}`, "GET")
+      .then((r) => alive && setCiv(r.linked ? r : null))
+      .catch(() => alive && setCiv(null));
+    return () => {
+      alive = false;
+    };
+    // 名前が変わるのは最初の読み込みのときだけ
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lora?.name, lora?.isPromptOnly]);
 
   useEffect(() => {
     edit<{ lora: LoraEntry }>({ action: "get-lora", name })
@@ -317,7 +414,13 @@ export function LoraEditor({ name, onClose, onSaved }: { name: string; onClose: 
           <Field label="トリガーワード" htmlFor="l-trig" hint="# で始まる行はコメント。">
             <TagField multiline id="l-trig" value={lora.triggerWords} onChange={(v) => setLora({ ...lora, triggerWords: v })} rows={9} style={mono} />
           </Field>
-          <DanbooruImport value={lora.triggerWords} onChange={(v) => setLora({ ...lora, triggerWords: v })} />
+          {lora.isPromptOnly || civ === null ? (
+            <DanbooruImport value={lora.triggerWords} onChange={(v) => setLora({ ...lora, triggerWords: v })} />
+          ) : civ === undefined ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (
+            <CivitaiPanel info={civ} words={lora.triggerWords} onWords={(v) => setLora({ ...lora, triggerWords: v })} />
+          )}
         </>
       )}
     </ScreenSheet>
