@@ -3,6 +3,7 @@ import {
   addFixedLora,
   addVariableLora,
   deleteFixedLora,
+  deleteVariableLora,
   saveFixedTags,
   deletePreset,
   deleteVariableDef,
@@ -90,6 +91,8 @@ export async function POST(req: NextRequest) {
         });
         return r === "ok" ? NextResponse.json({ ok: true, name }) : NextResponse.json({ error: "同じ名前がすでに固定されています" }, { status: 409 });
       }
+      case "delete-lora":
+        return deleteVariableLora(String(b.name)) ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "見つかりません" }, { status: 404 });
       case "delete-fixed-lora":
         return deleteFixedLora(String(b.name)) ? NextResponse.json({ ok: true }) : NextResponse.json({ error: "見つかりません" }, { status: 404 });
       case "get-lora": {

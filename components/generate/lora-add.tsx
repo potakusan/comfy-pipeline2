@@ -68,7 +68,7 @@ export function DanbooruImport({ value, onChange }: { value: string; onChange: (
 }
 
 /**
- * 生成画面の「LoRA」リストに、LoRA(ファイル)か「タグのみ」の項目を追加する。
+ * 生成画面の「キャラクター」リストに、LoRA(ファイル)か「タグのみ」の項目を追加する。
  * initial を渡すと、そのファイルを選んだ状態で開く(LoRA 画面から)。
  */
 export function LoraAddSheet({
@@ -116,7 +116,7 @@ export function LoraAddSheet({
     setSaving(true);
     try {
       const r = await api<{ name: string }>("/api/library/edit", "POST", { action: fixed ? "add-fixed-lora" : "add-lora", lora: { name, strength, clipStrength: clip, triggerWords: words, promptOnly, families } });
-      toast.success(fixed ? "固定LoRAに追加しました" : promptOnly ? "タグのみの項目を追加しました" : "LoRA をリストに追加しました");
+      toast.success(fixed ? "固定LoRAに追加しました" : promptOnly ? "タグのみのキャラクターを追加しました" : "キャラクターを追加しました");
       onAdded(r.name);
       onClose();
     } catch (e) {
@@ -130,7 +130,7 @@ export function LoraAddSheet({
   const needsFile = fileMode && !initial;
   return (
     <ScreenSheet
-      title={fixed ? "固定LoRAを追加" : "LoRA をリストに追加"}
+      title={fixed ? "固定LoRAを追加" : "キャラクターを追加"}
       onClose={onClose}
       footer={
         <Button size="lg" className="flex-1" disabled={saving || !name.trim()} onClick={() => void save()}>

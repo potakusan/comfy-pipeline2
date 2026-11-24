@@ -347,7 +347,7 @@ function CivitaiPanel({ info, words, onWords }: { info: CivitaiInfo; words: stri
 
 // ---- LoRA(強度・トリガーワード) ---------------------------------------------------------
 
-export function LoraEditor({ name, fixed, onClose, onSaved }: { name: string; fixed?: boolean; onClose: () => void; onSaved: () => void }) {
+export function LoraEditor({ name, fixed, onClose, onSaved, onDeleted }: { name: string; fixed?: boolean; onClose: () => void; onSaved: () => void; onDeleted?: (name: string) => void }) {
   const [lora, setLora] = useState<LoraEntry | null>(null);
   const [saving, setSaving] = useState(false);
   /** undefined = 取得中 / null = Civitai と紐づいていない(または取得できない) */
@@ -373,6 +373,30 @@ export function LoraEditor({ name, fixed, onClose, onSaved }: { name: string; fi
       .catch((e) => toast.error(e instanceof Error ? e.message : "読み込めませんでした"));
   }, [name, fixed]);
 
+  const [armedDelete, setArmedDelete] = useState(false);
+  useEffect(() => {
+    if (!armedDelete) return;
+    const t = setTimeout(() => setArmedDelete(false), 5000);
+    return () => clearTimeout(t);
+  }, [armedDelete]);
+
+  /** リストから外す(LoRA のファイルは消えない)。押し直し式の確認 */
+  async function remove() {
+    if (!lora || !onDeleted) return;
+    if (!armedDelete) return setArmedDelete(true);
+    setSaving(true);
+    try {
+      await edit({ action: "delete-lora", name: lora.name });
+      toast.success(`「${lora.name}」をリストから外しました(LoRA のファイルは消えません)`);
+      onDeleted(lora.name);
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "外せませんでした");
+      setSaving(false);
+      setArmedDelete(false);
+    }
+  }
+
   async function save() {
     if (!lora) return;
     setSaving(true);
@@ -390,12 +414,19 @@ export function LoraEditor({ name, fixed, onClose, onSaved }: { name: string; fi
 
   return (
     <ScreenSheet
-      title={fixed ? "固定LoRAを編集" : "LoRAを編集"}
+      title={fixed ? "固定LoRAを編集" : "キャラクターを編集"}
       onClose={onClose}
       footer={
-        <Button size="lg" className="flex-1" disabled={saving || !lora} onClick={() => void save()}>
-          {saving ? "保存中…" : "保存"}
-        </Button>
+        <>
+          {onDeleted && !fixed && (
+            <Button variant={armedDelete ? "destructive" : "outline"} size="lg" disabled={saving || !lora} onClick={() => void remove()}>
+              <Trash2 /> {armedDelete ? "もう一度で削除" : "削除"}
+            </Button>
+          )}
+          <Button size="lg" className="flex-1" disabled={saving || !lora} onClick={() => void save()}>
+            {saving ? "保存中…" : "保存"}
+          </Button>
+        </>
       }
     >
       {!lora ? (

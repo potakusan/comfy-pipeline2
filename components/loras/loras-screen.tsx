@@ -278,7 +278,7 @@ function LocalSheet({ lora, onClose, onDeleted, onOpenCivitai }: { lora: LocalLo
           </Button>
         )}
         <Button size="lg" disabled={registered || !registry.data} onClick={() => setAdding(true)}>
-          {registered ? <Check /> : <ListPlus />} {registered ? "生成画面のLoRAリストに登録済み" : "生成画面のLoRAリストに追加"}
+          {registered ? <Check /> : <ListPlus />} {registered ? "生成画面のキャラクターに登録済み" : "生成画面のキャラクターに追加"}
         </Button>
         {lora.civitaiModelId && (
           <Button variant="outline" onClick={() => onOpenCivitai(lora.civitaiModelId!)}>

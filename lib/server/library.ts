@@ -157,6 +157,14 @@ export function addFixedLora(lora: { name: string; strength: number; clipStrengt
   return "ok";
 }
 
+/** 生成画面の「キャラクター」(variable-loras.json)の項目をリストから外す。LoRA のファイルは消さない。 */
+export function deleteVariableLora(name: string): boolean {
+  const list = readJson<LoraEntry[]>("variableLoras", []);
+  if (!list.some((l) => l.name === name)) return false;
+  writeJson("variableLoras", list.filter((l) => l.name !== name));
+  return true;
+}
+
 export function deleteFixedLora(name: string): boolean {
   const list = readJson<LoraEntry[]>("fixedLoras", []);
   if (!list.some((l) => l.name === name)) return false;

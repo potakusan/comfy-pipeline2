@@ -246,11 +246,11 @@ export function GenerateScreen() {
               onChange={(ids) => update({ setIds: ids })}
             />
             <Picker
-              label="LoRA"
+              label="キャラクター"
               items={loraItems}
               value={form.lora}
               onChange={(v) => update({ lora: v })}
-              emptyText="LoRAが登録されていません"
+              emptyText="キャラクターが登録されていません"
               onEditItem={(name) => openEditor({ kind: "lora", name })}
               onAdd={() => openEditor({ kind: "lora-add" })}
             />
@@ -410,7 +410,18 @@ export function GenerateScreen() {
               }}
             />
           );
-        if (e.kind === "lora") return <LoraEditor key={key} name={e.name} onClose={closeEditor} onSaved={() => void refresh()} />;
+        if (e.kind === "lora") return (
+            <LoraEditor
+              key={key}
+              name={e.name}
+              onClose={closeEditor}
+              onSaved={() => void refresh()}
+              onDeleted={(n) => {
+                if (form.lora === n) update({ lora: null });
+                void refresh();
+              }}
+            />
+          );
         return (
           <BatchPresetEditor
             key={key}
