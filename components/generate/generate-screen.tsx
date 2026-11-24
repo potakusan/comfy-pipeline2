@@ -30,7 +30,10 @@ interface Form {
 }
 
 const INITIAL: Form = { setIds: [], lora: null, physical: [], scenes: {}, checked: {}, varValues: {} };
-const KEY = "cp2_generate_form_v4";
+// 初期状態で選ぶセット(名前で探す。なければ先頭のセット)。保存した選択があればそちらを優先する
+const DEFAULT_SET_NAMES = ["ペッティング", "標準セット_パターン2", "標準セット_立位", "キスハメセット"];
+// 既定の選び方を変えたので、以前の選択は引き継がず、一度だけ初期化する(v4 → v5)
+const KEY = "cp2_generate_form_v5";
 
 function loadForm(): Form {
   try {
@@ -82,11 +85,13 @@ export function GenerateScreen() {
     });
   }, []);
 
-  // 選ばれているセット。保存済みの id が消えていたら外し、何も無ければ先頭のセットを使う
+  // 選ばれているセット。保存済みの id が消えていたら外し、何も選ばれていなければ既定のセットを使う
   const activeSets = useMemo(() => {
     if (!lib) return [];
     const chosen = lib.sets.filter((s) => form.setIds.includes(s.id));
-    return chosen.length > 0 ? chosen : lib.sets.slice(0, 1);
+    if (chosen.length > 0) return chosen;
+    const defaults = DEFAULT_SET_NAMES.map((n) => lib.sets.find((s) => s.name === n)).filter((s): s is (typeof lib.sets)[number] => !!s);
+    return defaults.length > 0 ? defaults : lib.sets.slice(0, 1);
   }, [lib, form.setIds]);
 
   const idsFor = useCallback(
