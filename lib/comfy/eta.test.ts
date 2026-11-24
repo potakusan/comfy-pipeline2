@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatClock, formatDuration, remainingSeconds, secondsPerImage } from "./eta";
+import { formatClock, formatDuration, remainingSeconds, secondsFromDurations, secondsPerImage } from "./eta";
 
 describe("secondsPerImage", () => {
   it("間隔の中央値を使い、10分以上の空きは数えない", () => {
@@ -30,5 +30,15 @@ describe("format", () => {
     const now = new Date(2026, 10, 24, 22, 0).getTime();
     expect(formatClock(new Date(2026, 10, 24, 23, 5).getTime(), now)).toBe("23:05");
     expect(formatClock(new Date(2026, 10, 25, 1, 30).getTime(), now)).toBe("11/25 01:30");
+  });
+});
+
+describe("secondsFromDurations", () => {
+  it("実際の生成時間の中央値を使う(まとめて確定されても狂わない)", () => {
+    expect(secondsFromDurations([30000, 31000, 29000, 90000, 30500])?.sec).toBeCloseTo(30.5, 1);
+  });
+  it("3枚未満なら null、外れた値は除く", () => {
+    expect(secondsFromDurations([30000, 31000])).toBeNull();
+    expect(secondsFromDurations([30000, 31000, 29000, 0, 99_999_999])?.samples).toBe(3);
   });
 });

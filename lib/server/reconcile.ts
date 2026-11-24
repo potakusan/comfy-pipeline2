@@ -31,6 +31,21 @@ export function reconcileJobs(queue: QueueSnapshot): Promise<void> {
   return lock.__cpReconcile;
 }
 
+const MAX_PER_PASS = 4;
+
+/** ComfyUI の履歴にある実行の開始・成功の時刻から、実際に生成にかかった時間(ミリ秒)。取れなければ null */
+function executionMs(entry: { status?: { messages?: unknown[] } }): number | null {
+  let start: number | null = null;
+  let end: number | null = null;
+  for (const m of entry.status?.messages ?? []) {
+    if (!Array.isArray(m) || m.length < 2) continue;
+    const ts = Number((m[1] as { timestamp?: unknown } | null)?.timestamp);
+    if (!Number.isFinite(ts)) continue;
+    if (m[0] === "execution_start") start = ts;
+    else if (m[0] === "execution_success") end = ts;
+  }
+  return start != null && end != null && end > start ? end - start : null;
+}
 const FILE_LOCK = path.join(DATA_DIR, "reconcile.lock");
 const FILE_LOCK_STALE_MS = 60_000;
 
@@ -114,8 +129,11 @@ async function reconcileOnce(queue: QueueSnapshot): Promise<void> {
   const recent: RecentImage[] = [];
   const failed: FailedJob[] = [];
 
+  let processed = 0;
   for (const job of jobs) {
     if (active.has(job.promptId)) continue;
+    // 変換は重い(大きな画像)ので、1回に確定するのは数枚まで。残りは次の回で。そのたびに一覧へ反映され、API も長く待たされない
+    if (processed >= MAX_PER_PASS) break;
     const entry = await getHistory(job.promptId);
     if (!entry) {
       // 履歴にも無く、キューにも無い: 送った直後の取りこぼしを考え、一定時間は残す(ComfyUI 再起動などで消えたら諦める)
@@ -123,6 +141,8 @@ async function reconcileOnce(queue: QueueSnapshot): Promise<void> {
       continue;
     }
     drop.add(job.promptId);
+    processed++;
+    const ms = executionMs(entry);
     if (entry.status?.status_str === "error") {
       failed.push({ promptId: job.promptId, label: job.label, message: "生成に失敗しました(ComfyUI のログを確認)", at: Date.now() });
       continue;
@@ -151,6 +171,7 @@ async function reconcileOnce(queue: QueueSnapshot): Promise<void> {
         label: job.label,
         at: Date.now(),
         kind: job.kind,
+        ...(ms ? { ms } : {}),
       });
       any = true;
     }
@@ -164,4 +185,12 @@ async function reconcileOnce(queue: QueueSnapshot): Promise<void> {
   // 参照するジョブが無くなったアイテム雛形は捨てる
   const live = new Set([...readJobs().map((j) => j.entryId), ...readTodo().map((t) => t.id)]);
   updateEntries((all) => Object.fromEntries(Object.entries(all).filter(([id]) => live.has(id))));
+}
+
+/**
+ * 確定を始めるだけで、終わりを待たない。画面の定期更新(キュー)が、変換の重い確定に引きずられて応答しなくならないように使う。
+ * 確定の本体は、サーバーの定期処理(feeder)も回し続ける。
+ */
+export function reconcileSoon(queue: QueueSnapshot): void {
+  void reconcileJobs(queue).catch((e) => console.error("[reconcile]", e));
 }

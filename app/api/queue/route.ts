@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deletePending, getQueue } from "@/lib/server/comfy";
-import { reconcileJobs } from "@/lib/server/reconcile";
+import { reconcileSoon } from "@/lib/server/reconcile";
 import { readEntries, readFailed, readHeld, readJobs, readRecent, readTodo } from "@/lib/server/store";
 import { cancelEntry, clearWaiting, lastFeedError, pauseAfterCurrentSet, planPause, redo, removeHeld, startHeld } from "@/lib/server/queue-ops";
 import { ensureFeeder } from "@/lib/server/feeder";
 import { interrupt } from "@/lib/server/comfy";
 import { getLive } from "@/lib/server/ws";
 import { fail } from "@/lib/server/http";
-import { secondsPerImage } from "@/lib/comfy/eta";
+import { secondsFromDurations } from "@/lib/comfy/eta";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +15,7 @@ export async function GET() {
   try {
     ensureFeeder(); // 念のため(通常はサーバー起動時に始まっている)
     const queue = await getQueue();
-    await reconcileJobs(queue);
+    reconcileSoon(queue); // 待たない(変換が重いときも、この画面を止めない)
     const jobs = readJobs();
     const entries = readEntries();
     const describe = (promptId: string) => {
@@ -63,7 +63,10 @@ export async function GET() {
       previewAt: live.previewAt,
       now: Date.now(),
       // 1枚あたりの秒数の見積もり(最近できた本番の画像の間隔から)。実績が足りなければ null
-      secPerImage: secondsPerImage(readRecent().filter((r) => r.kind === "batch").map((r) => r.at))?.sec ?? null,
+      secPerImage: (() => {
+        // ComfyUI が実際に生成にかけた時間の中央値。確定した時刻の間隔は、画面を閉じている間にまとめて確定されると狂うので使わない(3枚たまるまでは「計算中」)
+        return secondsFromDurations(readRecent().flatMap((r) => (r.kind === "batch" && r.ms ? [r.ms] : [])))?.sec ?? null;
+      })(),
       recent: readRecent().slice(0, 40),
       failed: readFailed().slice(0, 5),
     });

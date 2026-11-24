@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("promptId") ?? "";
     const queue = await getQueue();
-    await reconcileJobs(queue);
+    // 結果待ち用。確定に時間がかかるときは、数秒で切り上げて「まだ」と返す(次の問い合わせで拾う)
+    await Promise.race([reconcileJobs(queue), new Promise((r) => setTimeout(r, 2500))]);
     const live = getLive();
 
     if (queue.running.some((q) => q.promptId === id)) {

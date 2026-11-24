@@ -26,6 +26,8 @@ interface GalleryRow {
 
 export function QueueScreen() {
   const { data, error, loading, reload } = usePoll<QueueResponse>("/api/queue", 2000);
+  // 進捗・途中画像は、軽い専用の応答を短い間隔で見る(一覧の更新は2秒のまま)。v1 は WebSocket で直接受けているので、それに近づける
+  const fast = usePoll<{ progress: QueueResponse["progress"]; previewAt: number | null }>("/api/queue/live", 400);
   // ビューアに渡す画像は、開いた時点の一覧を持つ(2秒ごとの更新で新しい画像が先頭に増えても、見ている画像がずれないように)
   const [viewer, setViewer] = useState<{ images: ViewerImage[]; start: number } | null>(null);
   const [focusPath, setFocusPath] = useState<string | null>(null);
@@ -131,7 +133,9 @@ export function QueueScreen() {
   const heldImages = data.held.reduce((s, h) => s + h.count, 0);
   const running = data.running[0];
   const group = running ? data.groups[running.entryId] : undefined;
-  const live = running && data.progress?.promptId === running.promptId ? data.progress : null;
+  const liveProgress = fast.data?.progress ?? data.progress;
+  const livePreviewAt = fast.data ? fast.data.previewAt : data.previewAt;
+  const live = running && liveProgress?.promptId === running.promptId ? liveProgress : null;
   // 待機中を「アイテム」ごとにまとめる(順序は最初に出てきた順)
   const remaining = data.running.length + data.waitingImages;
   // 残り時間(ETA)。実行中の1枚は、ステップの進み具合の分だけ減らす
@@ -224,9 +228,9 @@ export function QueueScreen() {
             ) : (
               <div className="panel-body">
                 <div className="preview-frame">
-                  {data.previewAt ? (
+                  {livePreviewAt ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`/api/queue/preview?t=${data.previewAt}`} alt="生成中の途中画像" />
+                    <img src={`/api/queue/preview?t=${livePreviewAt}`} alt="生成中の途中画像" />
                   ) : (
                     <span className="label">途中画像を待っています…</span>
                   )}

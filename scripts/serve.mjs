@@ -19,5 +19,5 @@ if (!process.env.HOST && !tsIp) {
 console.log(`[comfy-pipeline2] http://${host}:${port}  (${mode})`);
 
 const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
-const child = spawn(process.execPath, [nextBin, mode, "-H", host, "-p", port], { stdio: "inherit" });
+const child = spawn(process.execPath, [nextBin, mode, "-H", host, "-p", port], { stdio: "inherit", env: { ...process.env, UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE ?? "16" } }); // 重い画像変換(sharp)に I/O を塞がれないよう、スレッドプールを広げる
 child.on("exit", (code) => process.exit(code ?? 0));

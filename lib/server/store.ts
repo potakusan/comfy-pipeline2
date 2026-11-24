@@ -171,6 +171,8 @@ export interface RecentImage {
   label: string;
   at: number;
   kind: PendingJob["kind"];
+  /** ComfyUI が実際に生成にかけた時間(ミリ秒)。残り時間の見積もりに使う */
+  ms?: number;
 }
 
 export function readRecent(): RecentImage[] {

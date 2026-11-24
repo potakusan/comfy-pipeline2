@@ -7,6 +7,9 @@ import { V1_DIR } from "./env";
 // ComfyUI は PNG で出力するが、v1 は設定(既定 JPG 品質95・4:4:4)へ変換して保存している。
 // ギャラリーを v1 と共有するため、モバイル版で生成した画像も同じ形式に揃える。
 
+// 変換は重い(mozjpeg)。CPU を使い切って ComfyUI・画面の応答を邪魔しないよう、スレッド数を絞る
+sharp.concurrency(2);
+
 type Format = "png" | "jpg" | "webp";
 interface OutputImageSettings {
   format: Format;

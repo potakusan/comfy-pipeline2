@@ -15,6 +15,17 @@ export function secondsPerImage(completedAt: number[], maxGapSec = 600): { sec: 
   return { sec: gaps.length % 2 ? gaps[mid] : (gaps[mid - 1] + gaps[mid]) / 2, samples: gaps.length };
 }
 
+/**
+ * 1枚あたりの秒数を、ComfyUI が実際に生成にかけた時間(ミリ秒)から出す。新しい順に最大20枚の中央値。
+ * 完成を確定した時刻の間隔と違い、画面を閉じていてまとめて確定されたときにも狂わない。3枚未満なら null。
+ */
+export function secondsFromDurations(durationsMs: number[]): { sec: number; samples: number } | null {
+  const v = durationsMs.filter((m) => m > 200 && m < 3_600_000).slice(0, 20).map((m) => m / 1000).sort((a, b) => a - b);
+  if (v.length < 3) return null;
+  const mid = v.length >> 1;
+  return { sec: v.length % 2 ? v[mid] : (v[mid - 1] + v[mid]) / 2, samples: v.length };
+}
+
 /** 残り枚数から、残り秒数。実行中の1枚は、進み具合(0〜1)の分だけ減らす。 */
 export function remainingSeconds(images: number, secPerImage: number, runningProgress = 0): number {
   return Math.max(0, images - Math.min(1, Math.max(0, runningProgress))) * secPerImage;
