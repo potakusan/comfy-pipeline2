@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Viewer, type ViewerImage } from "@/components/gallery/viewer";
 
+/** ラベルは「セット / LoRA / プリセット」なので、一覧ではプリセット名だけを出す */
+const presetOf = (label: string) => label.split(" / ").pop() || label;
+/** セット名。記録がない古い保留は、ラベルの先頭(複数セットのときだけ付く)から推測する */
+const setOf = (h: { label: string; setName: string | null }) => h.setName ?? (h.label.split(" / ").length >= 3 ? h.label.split(" / ")[0] : "その他");
+
 export function QueueScreen() {
   const { data, error, loading, reload } = usePoll<QueueResponse>("/api/queue", 2000);
   const [viewer, setViewer] = useState<number | null>(null);
@@ -69,6 +74,12 @@ export function QueueScreen() {
   }
 
   const heldImages = data.held.reduce((s, h) => s + h.count, 0);
+  // 保留をセットごとにまとめる(セットが分からない古いものは「その他」)。順序は最初に出てきた順
+  const heldGroups = [...data.held.reduce((m, h) => m.set(setOf(h), [...(m.get(setOf(h)) ?? []), h]), new Map<string, typeof data.held>())].map(([name, items]) => ({
+    name,
+    items,
+    count: items.reduce((s, h) => s + h.count, 0),
+  }));
   const running = data.running[0];
   const group = running ? data.groups[running.entryId] : undefined;
   const live = running && data.progress?.promptId === running.promptId ? data.progress : null;
@@ -90,17 +101,35 @@ export function QueueScreen() {
             {data.held.length === 0 ? (
               <p className="label">「生成」タブで追加すると、ここにたまります。</p>
             ) : (
-              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {data.held.map((h) => (
-                  <li key={h.id} className="row" style={{ padding: 0 }}>
-                    <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{h.label}</span>
-                    <span className="measured">×{h.count}</span>
-                    <Button variant="ghost" size="icon" aria-label={`${h.label}を保留から外す`} onClick={() => void act({ action: "remove-held", id: h.id })}>
-                      <X />
-                    </Button>
-                  </li>
+              // 大量にたまっても縦に伸びないよう、セットごとに畳む(開くと、その中のプリセットを内側のスクロールで見られる)
+              <div style={{ display: "grid", gap: "var(--space-xs)" }}>
+                {heldGroups.map((g) => (
+                  <details key={g.name} className="accordion">
+                    <summary style={{ gap: "var(--space-xs)" }}>
+                      <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>{g.name}</span>
+                      <span className="measured" style={{ color: "var(--color-muted)" }}>
+                        {g.items.length}件 ／ {g.count}枚
+                      </span>
+                    </summary>
+                    <ul style={{ listStyle: "none", margin: 0, padding: 0, maxHeight: "36dvh", overflowY: "auto", overscrollBehavior: "contain" }}>
+                      {g.items.map((h) => (
+                        <li key={h.id} className="row" style={{ padding: 0, minHeight: 44 }} title={h.label}>
+                          <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingLeft: "var(--space-sm)" }}>{presetOf(h.label)}</span>
+                          <span className="measured">×{h.count}</span>
+                          <Button variant="ghost" size="icon" aria-label={`${h.label}を保留から外す`} onClick={() => void act({ action: "remove-held", id: h.id })}>
+                            <X />
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div style={{ padding: "var(--space-xs) var(--space-sm)" }}>
+                      <Button variant="outline" size="sm" onClick={() => void act({ action: "remove-held", ids: g.items.map((h) => h.id) }, `${g.name}を保留から外しました`)}>
+                        <Trash2 /> このセットを保留から外す
+                      </Button>
+                    </div>
+                  </details>
                 ))}
-              </ul>
+              </div>
             )}
             <div style={{ display: "flex", gap: "var(--space-sm)" }}>
               <Button size="lg" className="flex-1" disabled={data.held.length === 0 || starting} onClick={() => void start()}>
@@ -205,16 +234,17 @@ export function QueueScreen() {
                   全消去
                 </Button>
               </div>
-              {pendingGroups.slice(0, 20).map(([entryId, jobs]) => (
-                <div key={entryId} className="row">
-                  <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{jobs[0].label || jobs[0].promptId.slice(0, 8)}</span>
-                  <span className="measured">×{jobs.length}</span>
-                  <Button variant="ghost" size="icon" aria-label={`${jobs[0].label}を取り消す`} onClick={() => void act({ action: "cancel-entry", entryId }, "取り消しました")}>
-                    <X />
-                  </Button>
-                </div>
-              ))}
-              {pendingGroups.length > 20 && <p className="label" style={{ padding: "var(--space-sm) var(--space-md)" }}>ほか {pendingGroups.length - 20} アイテム</p>}
+              <div style={{ maxHeight: "40dvh", overflowY: "auto", overscrollBehavior: "contain" }}>
+                {pendingGroups.map(([entryId, jobs]) => (
+                  <div key={entryId} className="row" title={jobs[0].label}>
+                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{presetOf(jobs[0].label) || jobs[0].promptId.slice(0, 8)}</span>
+                    <span className="measured">×{jobs.length}</span>
+                    <Button variant="ghost" size="icon" aria-label={`${jobs[0].label}を取り消す`} onClick={() => void act({ action: "cancel-entry", entryId }, "取り消しました")}>
+                      <X />
+                    </Button>
+                  </div>
+                ))}
+              </div>
             </section>
           )}
         </div>

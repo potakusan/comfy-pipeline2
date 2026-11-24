@@ -61,7 +61,7 @@ export interface QueueJob {
 }
 
 export interface QueueResponse {
-  held: { id: string; label: string; count: number }[];
+  held: { id: string; label: string; count: number; setName: string | null }[];
   running: QueueJob[];
   pending: QueueJob[];
   groups: Record<string, { label: string; total: number; remaining: number }>;

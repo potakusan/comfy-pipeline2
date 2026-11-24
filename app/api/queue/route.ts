@@ -26,7 +26,7 @@ export async function GET() {
     }
     const live = getLive();
     return NextResponse.json({
-      held: readHeld().map((h) => ({ id: h.id, label: h.template.label, count: h.count })),
+      held: readHeld().map((h) => ({ id: h.id, label: h.template.label, count: h.count, setName: h.setName ?? null })),
       running: queue.running.map((q) => describe(q.promptId)),
       pending: queue.pending.map((q) => describe(q.promptId)),
       groups,
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       promptId?: string;
       entryId?: string;
       promptIds?: string[];
+      ids?: string[];
     };
     switch (body.action) {
       case "start":
@@ -70,7 +71,8 @@ export async function POST(req: NextRequest) {
       case "pause-after-set":
         return NextResponse.json(await pauseAfterCurrentSet());
       case "remove-held":
-        removeHeld(body.id ?? "all");
+        if (Array.isArray(body.ids)) for (const id of body.ids) removeHeld(String(id));
+        else removeHeld(body.id ?? "all");
         return NextResponse.json({ ok: true });
       case "redo":
         return NextResponse.json(await redo(body.mode === "reroll" ? "reroll" : "same", body.promptId));
