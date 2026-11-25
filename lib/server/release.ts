@@ -124,6 +124,74 @@ export function listWorks(month: string): WorkSummary[] {
   return works.sort((a, b) => b.name.localeCompare(a.name));
 }
 
+/** src の中身を dst へ移す。同名のフォルダは中身ごとマージし、同名のファイルは連番を付けて両方残す */
+function mergeInto(src: string, dst: string): number {
+  let renamed = 0;
+  fs.mkdirSync(dst, { recursive: true });
+  for (const e of fs.readdirSync(src, { withFileTypes: true })) {
+    const from = path.join(src, e.name);
+    let to = path.join(dst, e.name);
+    if (e.isDirectory() && fs.existsSync(to) && fs.statSync(to).isDirectory()) {
+      renamed += mergeInto(from, to);
+      continue;
+    }
+    if (fs.existsSync(to)) {
+      const ext = path.extname(e.name);
+      const stem = e.name.slice(0, e.name.length - ext.length);
+      let n = 2;
+      while (fs.existsSync(path.join(dst, `${stem}_${n}${ext}`))) n++;
+      to = path.join(dst, `${stem}_${n}${ext}`);
+      renamed++;
+    }
+    fs.renameSync(from, to);
+  }
+  fs.rmdirSync(src);
+  return renamed;
+}
+
+export interface RenameWorkResult {
+  name: string;
+  merged: boolean;
+  /** マージで名前がぶつかり、連番を付けたファイルの数 */
+  renamedFiles: number;
+}
+
+/**
+ * 作品フォルダの名前を変える。同じ名前の作品がすでにあるときは、そこへ中身をマージする。
+ * PDF・Pixiv用セットは作品名で結び付いているので、行き先に同名のものがなければ、名前も一緒に変える。
+ */
+export function renameWork(month: string, top: string, newName: string): RenameWorkResult {
+  const src = workDir(month, top);
+  const name = newName.trim();
+  if (!name || name !== path.basename(name) || name.startsWith(".") || /[<>:"/\\|?*\x00-\x1f]/.test(name) || /[. ]$/.test(name)) throw new UserError("フォルダ名が使えません(記号 < > : \" / \\ | ? * は使えません)");
+  if (name === top) throw new UserError("名前が変わっていません");
+  const dst = path.join(monthDir(month), name);
+  const caseOnly = name.toLowerCase() === top.toLowerCase();
+  const merging = !caseOnly && fs.existsSync(dst);
+  if (merging && !fs.statSync(dst).isDirectory()) throw new UserError("同じ名前のファイルがあります");
+
+  let renamedFiles = 0;
+  if (merging) renamedFiles = mergeInto(src, dst);
+  else fs.renameSync(src, dst);
+
+  // 出力(PDF・Pixiv用セット): 行き先に同名がなければ、新しい作品名に付け替える
+  const out = outDirOf(month);
+  if (fs.existsSync(out)) {
+    const pixivFrom = path.join(out, `${top}_pixiv`);
+    const pixivTo = path.join(out, `${name}_pixiv`);
+    if (fs.existsSync(pixivFrom) && !fs.existsSync(pixivTo)) fs.renameSync(pixivFrom, pixivTo);
+    for (const f of fs.readdirSync(out)) {
+      if (!f.toLowerCase().endsWith(".pdf") || !f.startsWith(`${top}_`)) continue;
+      const to = path.join(out, `${name}_${f.slice(top.length + 1)}`);
+      if (!fs.existsSync(to)) fs.renameSync(path.join(out, f), to);
+    }
+  }
+  // サムネイルのキャッシュは作品の場所で引くので、古い名前の分は捨てる
+  const cache = safePath(path.join(getOutputDir(), ".thumbcache"), `release/${month}/${top}`);
+  if (cache) fs.rmSync(cache, { recursive: true, force: true });
+  return { name, merged: merging, renamedFiles };
+}
+
 export interface WorkDetail {
   month: string;
   name: string;

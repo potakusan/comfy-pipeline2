@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ChevronLeft, Copy, Crop, Download, GripVertical, FileArchive, FileText, Package, Sparkles } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ChevronLeft, Copy, Crop, Download, GripVertical, FileArchive, FileText, Package, Pencil, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { api, usePoll } from "@/lib/client/use-poll";
 import { useLongPress } from "@/lib/client/use-long-press";
@@ -178,6 +178,7 @@ function CopyField({ label, text, rows }: { label: string; text: string; rows?: 
 
 function WorkView({ month, work }: { month: string; work: string }) {
   const { data, error, loading, reload } = usePoll<WorkDetail>(`/api/release/work?month=${month}&top=${encodeURIComponent(work)}`, null);
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("images");
   const [picks, setPicks] = useState<string[]>([]);
   const [thumb, setThumb] = useState(150);
@@ -287,6 +288,28 @@ function WorkView({ month, work }: { month: string; work: string }) {
     }
   }
 
+  // 名前を変える。同名の作品があるときは、そこへマージする(確認してから)
+  async function renameWork() {
+    const input = window.prompt("新しいフォルダ名(同じ名前の作品があれば、そこにマージします)", work);
+    const name = input?.trim();
+    if (!name || name === work) return;
+    try {
+      const siblings = await api<{ works: WorkSummary[] }>(`/api/release/works?month=${month}`, "GET");
+      const exists = siblings.works.some((w) => w.name === name && name.toLowerCase() !== work.toLowerCase());
+      if (exists && !window.confirm(`「${name}」はすでにあります。この作品の画像をそこへマージします(同名のファイルは連番を付けて両方残します)。よろしいですか？`)) return;
+      const r = await api<{ name: string; merged: boolean; renamedFiles: number }>("/api/release/work", "PATCH", { month, top: work, name });
+      try {
+        const old = localStorage.getItem(picksKey);
+        if (old && !r.merged) localStorage.setItem(`cp2_release_picks:${month}/${r.name}`, old);
+        localStorage.removeItem(picksKey);
+      } catch {}
+      toast.success(r.merged ? `「${r.name}」にマージしました${r.renamedFiles > 0 ? `(同名${r.renamedFiles}枚は連番を付けました)` : ""}` : "名前を変えました");
+      router.replace(`/release?month=${month}&work=${encodeURIComponent(r.name)}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "名前を変えられませんでした");
+    }
+  }
+
   async function makeFiles() {
     try {
       const r = await api<{ jobId: string }>("/api/release/build", "POST", { month, top: work, pdf: wantPdf, zip: wantZip, force });
@@ -322,7 +345,12 @@ function WorkView({ month, work }: { month: string; work: string }) {
 
   return (
     <div className="page wide gallery-page">
-      <h2 style={{ fontSize: "var(--text-lg)", maxWidth: "none", overflowWrap: "anywhere" }}>{data.name}</h2>
+      <div style={{ display: "flex", gap: "var(--space-xs)", alignItems: "center", flexWrap: "wrap" }}>
+        <h2 style={{ fontSize: "var(--text-lg)", maxWidth: "none", overflowWrap: "anywhere", minWidth: 0 }}>{data.name}</h2>
+        <Button type="button" variant="outline" size="sm" onClick={() => void renameWork()}>
+          <Pencil /> フォルダ名を変える
+        </Button>
+      </div>
 
       <div className="gallery-controls">
         <div style={{ display: "flex", gap: "var(--space-xs)", alignItems: "center", flexWrap: "wrap" }}>

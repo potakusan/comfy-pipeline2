@@ -311,9 +311,6 @@ export function MosaicEditor({ path, album, sourceName, index, total, onNavigate
         <Button type="button" variant="ghost" size="icon" aria-label="やり直す" disabled={!canRedo} onClick={() => step(future, past)}>
           <Redo2 />
         </Button>
-        <Button type="button" size="sm" disabled={saving || loading || !dirty || busy} onClick={() => void save()}>
-          <Save /> {saving ? "保存中…" : "保存"}
-        </Button>
       </header>
 
       <div className="editor-area" ref={wrapRef} data-tool={tool}>
@@ -390,6 +387,10 @@ export function MosaicEditor({ path, album, sourceName, index, total, onNavigate
           モザイクをかけたい範囲を、指でぐるっと囲んでください。拡大したまま動かすときは「移動」に切り替えます。
         </p>
         {/* 画像送り: サイドバー(スマホでは操作パネル)の一番下に固定する。全件を目視で確認するときに、親指の位置で次々に送れるように */}
+        <div className="editor-foot">
+          <Button type="button" size="lg" className="w-full" disabled={saving || loading || !dirty || busy} onClick={() => void save()}>
+            <Save /> {saving ? "保存中…" : "保存"}
+          </Button>
         <nav className="editor-nav" aria-label="画像送り">
           <Button type="button" variant="outline" size="lg" aria-label="前の画像" disabled={busy || index <= 0} onClick={() => navigate(-1)}>
             <ChevronLeft /> 前へ
@@ -401,6 +402,7 @@ export function MosaicEditor({ path, album, sourceName, index, total, onNavigate
             次へ <ChevronRight />
           </Button>
         </nav>
+        </div>
       </div>
     </div>
   );
